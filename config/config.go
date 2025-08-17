@@ -157,3 +157,93 @@ func IsValidSlug(slug string) bool {
 	slugRegex := regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 	return slugRegex.MatchString(slug)
 }
+
+// IsValidNumber checks if a string represents a valid number
+func IsValidNumber(str string) bool {
+	_, err := strconv.ParseFloat(str, 64)
+	return err == nil
+}
+
+// IsValidInteger checks if a string represents a valid integer
+func IsValidInteger(str string) bool {
+	_, err := strconv.Atoi(str)
+	return err == nil
+}
+
+// IsValidPositiveInteger checks if a string represents a valid positive integer
+func IsValidPositiveInteger(str string) bool {
+	num, err := strconv.Atoi(str)
+	return err == nil && num > 0
+}
+
+// IsValidNonNegativeInteger checks if a string represents a valid non-negative integer
+func IsValidNonNegativeInteger(str string) bool {
+	num, err := strconv.Atoi(str)
+	return err == nil && num >= 0
+}
+
+// IsValidFloat checks if a string represents a valid float
+func IsValidFloat(str string) bool {
+	_, err := strconv.ParseFloat(str, 64)
+	return err == nil
+}
+
+// IsValidPositiveFloat checks if a string represents a valid positive float
+func IsValidPositiveFloat(str string) bool {
+	num, err := strconv.ParseFloat(str, 64)
+	return err == nil && num > 0
+}
+
+// IsValidNonNegativeFloat checks if a string represents a valid non-negative float
+func IsValidNonNegativeFloat(str string) bool {
+	num, err := strconv.ParseFloat(str, 64)
+	return err == nil && num >= 0
+}
+
+// IsValidNonEmptyString checks if a string is not empty and not just whitespace
+func IsValidNonEmptyString(str string) bool {
+	return strings.TrimSpace(str) != ""
+}
+
+// IsValidAlphabetic checks if a string contains only alphabetic characters
+func IsValidAlphabetic(str string) bool {
+	if str == "" {
+		return false
+	}
+	alphabeticRegex := regexp.MustCompile(`^[a-zA-Z]+$`)
+	return alphabeticRegex.MatchString(str)
+}
+
+// IsValidAlphanumeric checks if a string contains only alphanumeric characters
+func IsValidAlphanumeric(str string) bool {
+	if str == "" {
+		return false
+	}
+	alphanumericRegex := regexp.MustCompile(`^[a-zA-Z0-9]+$`)
+	return alphanumericRegex.MatchString(str)
+}
+
+// IsValidNumeric checks if a string contains only numeric characters
+func IsValidNumeric(str string) bool {
+	if str == "" {
+		return false
+	}
+	numericRegex := regexp.MustCompile(`^[0-9]+$`)
+	return numericRegex.MatchString(str)
+}
+
+// IsValidLowercase checks if a string contains only lowercase characters
+func IsValidLowercase(str string) bool {
+	if str == "" {
+		return false
+	}
+	return str == strings.ToLower(str)
+}
+
+// IsValidUppercase checks if a string contains only uppercase characters
+func IsValidUppercase(str string) bool {
+	if str == "" {
+		return false
+	}
+	return str == strings.ToUpper(str)
+}
