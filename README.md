@@ -56,9 +56,69 @@ timeout := config.GetEnvDuration("TIMEOUT", 30*time.Second)
 // Required environment variables
 dbURL := config.RequiredEnv("DATABASE_URL") // Panics if not set
 
-// Validation
+// Network and URL validation
+if !config.IsValidPort("8080") {
+    // Handle invalid port
+}
+if !config.IsValidIP("192.168.1.1") {
+    // Handle invalid IP
+}
 if !config.IsValidEmail("user@example.com") {
     // Handle invalid email
+}
+if !config.IsValidURL("https://example.com") {
+    // Handle invalid URL
+}
+if !config.IsValidDomain("example.com") {
+    // Handle invalid domain
+}
+if !config.IsValidHost("api.example.com") {
+    // Handle invalid host
+}
+
+// Number validation
+if !config.IsValidInteger("123") {
+    // Handle invalid integer
+}
+if !config.IsValidPositiveInteger("456") {
+    // Handle invalid positive integer
+}
+if !config.IsValidFloat("123.45") {
+    // Handle invalid float
+}
+if !config.IsValidNumber("123.45") {
+    // Handle invalid number
+}
+
+// String validation
+if !config.IsValidNonEmptyString("hello") {
+    // Handle empty string
+}
+if !config.IsValidAlphabetic("HelloWorld") {
+    // Handle non-alphabetic string
+}
+if !config.IsValidAlphanumeric("Hello123") {
+    // Handle non-alphanumeric string
+}
+if !config.IsValidLowercase("hello") {
+    // Handle non-lowercase string
+}
+if !config.IsValidUppercase("HELLO") {
+    // Handle non-uppercase string
+}
+
+// Format validation
+if !config.IsValidUUID("550e8400-e29b-41d4-a716-446655440000") {
+    // Handle invalid UUID
+}
+if !config.IsValidBase64("SGVsbG8gV29ybGQ=") {
+    // Handle invalid base64
+}
+if !config.IsValidHex("1a2b3c4d") {
+    // Handle invalid hex
+}
+if !config.IsValidSlug("hello-world") {
+    // Handle invalid slug
 }
 ```
 
@@ -226,6 +286,7 @@ age, err := jsonx.GetInt(userMap, "age")
 
 ```go
 import "github.com/kerimovok/go-pkg-utils/validator"
+import "github.com/kerimovok/go-pkg-utils/config"
 
 type User struct {
     Name  string `json:"name" validate:"required,min=2,max=50"`
@@ -240,6 +301,39 @@ if errors.HasErrors() {
     for _, err := range errors {
         fmt.Printf("Field: %s, Error: %s\n", err.Field, err.Message)
     }
+}
+
+// Direct validation using config functions
+if !config.IsValidEmail(user.Email) {
+    fmt.Println("Invalid email format")
+}
+
+if !config.IsValidNonEmptyString(user.Name) {
+    fmt.Println("Name cannot be empty")
+}
+
+// Number validation
+ageStr := "25"
+if !config.IsValidPositiveInteger(ageStr) {
+    fmt.Println("Age must be a positive integer")
+}
+
+// Network validation
+if !config.IsValidIP("192.168.1.1") {
+    fmt.Println("Invalid IP address")
+}
+
+if !config.IsValidPort("8080") {
+    fmt.Println("Invalid port number")
+}
+
+// Format validation
+if !config.IsValidUUID("550e8400-e29b-41d4-a716-446655440000") {
+    fmt.Println("Invalid UUID format")
+}
+
+if !config.IsValidSlug("user-profile") {
+    fmt.Println("Invalid slug format")
 }
 ```
 
@@ -272,6 +366,47 @@ err := handler.SafeExecute(func() error {
 
 ## 🔧 Configuration
 
+### Comprehensive Validation Functions
+
+The config package provides extensive validation capabilities:
+
+```go
+import "github.com/kerimovok/go-pkg-utils/config"
+
+// Network and URL validation
+config.IsValidIP("192.168.1.1")           // true
+config.IsValidIPv4("192.168.1.1")         // true
+config.IsValidIPv6("::1")                 // true
+config.IsValidPort("8080")                // true
+config.IsValidHost("api.example.com")     // true
+config.IsValidDomain("example.com")       // true
+config.IsValidURL("https://example.com")  // true
+config.IsValidEmail("user@example.com")   // true
+
+// Number validation
+config.IsValidNumber("123.45")            // true
+config.IsValidInteger("123")              // true
+config.IsValidPositiveInteger("456")      // true
+config.IsValidNonNegativeInteger("0")     // true
+config.IsValidFloat("123.45")             // true
+config.IsValidPositiveFloat("123.45")     // true
+config.IsValidNonNegativeFloat("0.0")     // true
+
+// String validation
+config.IsValidNonEmptyString("hello")     // true
+config.IsValidAlphabetic("HelloWorld")   // true
+config.IsValidAlphanumeric("Hello123")   // true
+config.IsValidNumeric("12345")           // true
+config.IsValidLowercase("hello")         // true
+config.IsValidUppercase("HELLO")         // true
+
+// Format validation
+config.IsValidUUID("550e8400-e29b-41d4-a716-446655440000") // true
+config.IsValidBase64("SGVsbG8gV29ybGQ=")                   // true
+config.IsValidHex("1a2b3c4d")                              // true
+config.IsValidSlug("hello-world")                          // true
+```
+
 ### Environment Variables
 
 The config package supports various data types:
@@ -296,6 +431,12 @@ secretKey := config.RequiredEnv("SECRET_KEY")
 rules := []validator.ValidationRule{
     {Variable: "PORT", Default: "8080", Rule: config.IsValidPort, Message: "Invalid port"},
     {Variable: "EMAIL", Rule: config.IsValidEmail, Message: "Invalid email"},
+    {Variable: "DB_HOST", Rule: config.IsValidHost, Message: "Invalid database host"},
+    {Variable: "API_URL", Rule: config.IsValidURL, Message: "Invalid API URL"},
+    {Variable: "MAX_CONNECTIONS", Rule: config.IsValidPositiveInteger, Message: "Max connections must be positive"},
+    {Variable: "TIMEOUT", Rule: config.IsValidPositiveFloat, Message: "Timeout must be positive"},
+    {Variable: "SECRET_KEY", Rule: config.IsValidNonEmptyString, Message: "Secret key cannot be empty"},
+    {Variable: "JWT_SECRET", Rule: config.IsValidBase64, Message: "JWT secret must be valid base64"},
 }
 
 err := validator.ValidateConfig(rules)
@@ -426,9 +567,38 @@ secretKey := config.RequiredEnv("SECRET_KEY")
 port := config.GetEnvInt("PORT", 8080)
 debug := config.GetEnvBool("DEBUG", false)
 
-// Validate configuration
+// Validate configuration with comprehensive checks
 if !config.IsValidURL(apiURL) {
     log.Fatal("Invalid API URL")
+}
+
+if !config.IsValidPort(portStr) {
+    log.Fatal("Invalid port number")
+}
+
+if !config.IsValidIP(dbHost) {
+    log.Fatal("Invalid database host IP")
+}
+
+if !config.IsValidEmail(adminEmail) {
+    log.Fatal("Invalid admin email")
+}
+
+if !config.IsValidPositiveInteger(maxConnections) {
+    log.Fatal("Max connections must be positive")
+}
+
+if !config.IsValidNonEmptyString(secretKey) {
+    log.Fatal("Secret key cannot be empty")
+}
+
+// Validate environment variables before use
+if !config.IsValidUUID(jwtSecret) {
+    log.Fatal("Invalid JWT secret format")
+}
+
+if !config.IsValidBase64(encryptionKey) {
+    log.Fatal("Encryption key must be valid base64")
 }
 ```
 
