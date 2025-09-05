@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 func IsValidPort(port string) bool {
@@ -246,4 +248,48 @@ func IsValidUppercase(str string) bool {
 		return false
 	}
 	return str == strings.ToUpper(str)
+}
+
+// SubstituteEnvVars replaces ${VARIABLE} patterns with environment variable values
+// Supports both ${VARIABLE} and ${VARIABLE:-default} syntax
+func SubstituteEnvVars(content []byte) []byte {
+	// Regex to match ${VARIABLE} or ${VARIABLE:-default}
+	envRegex := regexp.MustCompile(`\$\{([^}]+)\}`)
+
+	return envRegex.ReplaceAllFunc(content, func(match []byte) []byte {
+		// Extract the variable name and optional default value
+		inner := string(match[2 : len(match)-1]) // Remove ${ and }
+
+		var varName, defaultValue string
+		if strings.Contains(inner, ":-") {
+			parts := strings.SplitN(inner, ":-", 2)
+			varName = parts[0]
+			defaultValue = parts[1]
+		} else {
+			varName = inner
+		}
+
+		// Get environment variable value
+		value := GetEnv(varName)
+		if value == "" && defaultValue != "" {
+			value = defaultValue
+		}
+
+		return []byte(value)
+	})
+}
+
+// LoadYAMLConfig loads and parses a YAML config file with environment variable substitution
+func LoadYAMLConfig(filename string, target interface{}) error {
+	file, err := os.ReadFile(filename)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", filename, err)
+	}
+
+	content := SubstituteEnvVars(file)
+	if err := yaml.Unmarshal(content, target); err != nil {
+		return fmt.Errorf("failed to parse %s: %w", filename, err)
+	}
+
+	return nil
 }

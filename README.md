@@ -4,7 +4,7 @@ A comprehensive Go utilities package providing essential functionality for moder
 
 ## 🚀 Features
 
--   **🔧 Configuration**: Environment variable parsing with type safety and validation
+-   **🔧 Configuration**: Environment variable parsing with type safety, YAML configuration loading with environment variable substitution, and comprehensive validation
 -   **🌐 HTTP Responses**: Standardized API response structures with comprehensive HTTP status code support and Fiber integration
 -   **📝 Text Processing**: String manipulation, case conversion, validation, and more
 -   **🔐 Cryptography**: Secure random generation, password hashing, AES/RSA encryption, JWT
@@ -55,6 +55,34 @@ timeout := config.GetEnvDuration("TIMEOUT", 30*time.Second)
 
 // Required environment variables
 dbURL := config.RequiredEnv("DATABASE_URL") // Panics if not set
+
+// YAML Configuration with Environment Variable Substitution
+type AppConfig struct {
+    Database struct {
+        Host     string `yaml:"host"`
+        Port     int    `yaml:"port"`
+        Username string `yaml:"username"`
+        Password string `yaml:"password"`
+    } `yaml:"database"`
+    Server struct {
+        Port int    `yaml:"port"`
+        Host string `yaml:"host"`
+    } `yaml:"server"`
+}
+
+var cfg AppConfig
+err := config.LoadYAMLConfig("config.yaml", &cfg)
+
+// Environment variable substitution in YAML files
+// config.yaml example:
+// database:
+//   host: ${DB_HOST:-localhost}
+//   port: ${DB_PORT:-5432}
+//   username: ${DB_USERNAME}
+//   password: ${DB_PASSWORD}
+// server:
+//   port: ${SERVER_PORT:-8080}
+//   host: ${SERVER_HOST:-0.0.0.0}
 
 // Network and URL validation
 if !config.IsValidPort("8080") {
@@ -425,6 +453,98 @@ maxSize := config.GetEnvFloat("DB_MAX_SIZE", 100.5)
 secretKey := config.RequiredEnv("SECRET_KEY")
 ```
 
+### YAML Configuration with Environment Variable Substitution
+
+The config package provides powerful YAML configuration loading with automatic environment variable substitution:
+
+```go
+// Define your configuration structure
+type DatabaseConfig struct {
+    Host     string `yaml:"host"`
+    Port     int    `yaml:"port"`
+    Username string `yaml:"username"`
+    Password string `yaml:"password"`
+    SSL      bool   `yaml:"ssl"`
+}
+
+type ServerConfig struct {
+    Port    int    `yaml:"port"`
+    Host    string `yaml:"host"`
+    Timeout string `yaml:"timeout"`
+}
+
+type AppConfig struct {
+    Database DatabaseConfig `yaml:"database"`
+    Server   ServerConfig   `yaml:"server"`
+    Debug    bool           `yaml:"debug"`
+}
+
+// Load configuration from YAML file
+var cfg AppConfig
+err := config.LoadYAMLConfig("config.yaml", &cfg)
+if err != nil {
+    log.Fatal("Failed to load config:", err)
+}
+
+// Use your configuration
+fmt.Printf("Database: %s:%d\n", cfg.Database.Host, cfg.Database.Port)
+fmt.Printf("Server: %s:%d\n", cfg.Server.Host, cfg.Server.Port)
+```
+
+#### YAML File Example (config.yaml)
+
+```yaml
+database:
+    host: ${DB_HOST:-localhost}
+    port: ${DB_PORT:-5432}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    ssl: ${DB_SSL:-false}
+
+server:
+    port: ${SERVER_PORT:-8080}
+    host: ${SERVER_HOST:-0.0.0.0}
+    timeout: ${SERVER_TIMEOUT:-30s}
+
+debug: ${DEBUG:-false}
+```
+
+#### Environment Variable Substitution Syntax
+
+-   `${VARIABLE}` - Required variable (will be empty if not set)
+-   `${VARIABLE:-default}` - Optional variable with default value
+-   `${VARIABLE:-}` - Optional variable with empty string default
+
+#### Advanced Usage
+
+```go
+// Load multiple configuration files
+configs := []struct {
+    filename string
+    target   interface{}
+}{
+    {"config/database.yaml", &dbConfig},
+    {"config/server.yaml", &serverConfig},
+    {"config/features.yaml", &featureConfig},
+}
+
+for _, cfg := range configs {
+    if err := config.LoadYAMLConfig(cfg.filename, cfg.target); err != nil {
+        log.Fatalf("Failed to load %s: %v", cfg.filename, err)
+    }
+}
+
+// Manual environment variable substitution
+yamlContent := []byte(`
+database:
+  host: ${DB_HOST:-localhost}
+  port: ${DB_PORT:-5432}
+`)
+
+substituted := config.SubstituteEnvVars(yamlContent)
+// Process substituted content...
+```
+
 ### Validation Rules
 
 ```go
@@ -560,6 +680,17 @@ if chain.HasErrors() {
 ### Configuration Management
 
 ```go
+// Use YAML configuration with environment variable substitution for complex setups
+type Config struct {
+    Database struct {
+        Host string `yaml:"host"`
+        Port int    `yaml:"port"`
+    } `yaml:"database"`
+}
+
+var cfg Config
+err := config.LoadYAMLConfig("config.yaml", &cfg)
+
 // Use required variables for critical settings
 secretKey := config.RequiredEnv("SECRET_KEY")
 
