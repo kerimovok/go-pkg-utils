@@ -251,9 +251,10 @@ func IsValidUppercase(str string) bool {
 }
 
 // SubstituteEnvVars replaces ${VARIABLE} patterns with environment variable values
-// Supports both ${VARIABLE} and ${VARIABLE:-default} syntax
+// Supports ${VARIABLE}, ${VARIABLE:-default}, and ${VARIABLE=default} syntax
+// Both :- and = use the default value if the variable is unset or empty
 func SubstituteEnvVars(content []byte) []byte {
-	// Regex to match ${VARIABLE} or ${VARIABLE:-default}
+	// Regex to match ${VARIABLE} or ${VARIABLE:-default} or ${VARIABLE=default}
 	envRegex := regexp.MustCompile(`\$\{([^}]+)\}`)
 
 	return envRegex.ReplaceAllFunc(content, func(match []byte) []byte {
@@ -263,6 +264,10 @@ func SubstituteEnvVars(content []byte) []byte {
 		var varName, defaultValue string
 		if strings.Contains(inner, ":-") {
 			parts := strings.SplitN(inner, ":-", 2)
+			varName = parts[0]
+			defaultValue = parts[1]
+		} else if strings.Contains(inner, "=") {
+			parts := strings.SplitN(inner, "=", 2)
 			varName = parts[0]
 			defaultValue = parts[1]
 		} else {

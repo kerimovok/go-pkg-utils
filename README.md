@@ -76,13 +76,13 @@ err := config.LoadYAMLConfig("config.yaml", &cfg)
 // Environment variable substitution in YAML files
 // config.yaml example:
 // database:
-//   host: ${DB_HOST:-localhost}
-//   port: ${DB_PORT:-5432}
+//   host: ${DB_HOST:-localhost}  // or ${DB_HOST=localhost}
+//   port: ${DB_PORT:-5432}       // or ${DB_PORT=5432}
 //   username: ${DB_USERNAME}
 //   password: ${DB_PASSWORD}
 // server:
-//   port: ${SERVER_PORT:-8080}
-//   host: ${SERVER_HOST:-0.0.0.0}
+//   port: ${SERVER_PORT:-8080}   // or ${SERVER_PORT=8080}
+//   host: ${SERVER_HOST:-0.0.0.0} // or ${SERVER_HOST=0.0.0.0}
 
 // Network and URL validation
 if !config.IsValidPort("8080") {
@@ -495,25 +495,25 @@ fmt.Printf("Server: %s:%d\n", cfg.Server.Host, cfg.Server.Port)
 
 ```yaml
 database:
-    host: ${DB_HOST:-localhost}
-    port: ${DB_PORT:-5432}
+    host: ${DB_HOST:-localhost}      # or ${DB_HOST=localhost}
+    port: ${DB_PORT:-5432}           # or ${DB_PORT=5432}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
-    ssl: ${DB_SSL:-false}
+    ssl: ${DB_SSL:-false}            # or ${DB_SSL=false}
 
 server:
-    port: ${SERVER_PORT:-8080}
-    host: ${SERVER_HOST:-0.0.0.0}
-    timeout: ${SERVER_TIMEOUT:-30s}
+    port: ${SERVER_PORT:-8080}       # or ${SERVER_PORT=8080}
+    host: ${SERVER_HOST:-0.0.0.0}    # or ${SERVER_HOST=0.0.0.0}
+    timeout: ${SERVER_TIMEOUT:-30s}  # or ${SERVER_TIMEOUT=30s}
 
-debug: ${DEBUG:-false}
+debug: ${DEBUG:-false}               # or ${DEBUG=false}
 ```
 
 #### Environment Variable Substitution Syntax
 
 -   `${VARIABLE}` - Required variable (will be empty if not set)
--   `${VARIABLE:-default}` - Optional variable with default value
--   `${VARIABLE:-}` - Optional variable with empty string default
+-   `${VARIABLE:-default}` or `${VARIABLE=default}` - Optional variable with default value (both syntaxes are equivalent)
+-   `${VARIABLE:-}` or `${VARIABLE=}` - Optional variable with empty string default
 
 #### Advanced Usage
 
@@ -537,8 +537,8 @@ for _, cfg := range configs {
 // Manual environment variable substitution
 yamlContent := []byte(`
 database:
-  host: ${DB_HOST:-localhost}
-  port: ${DB_PORT:-5432}
+  host: ${DB_HOST:-localhost}  # or ${DB_HOST=localhost}
+  port: ${DB_PORT:-5432}       # or ${DB_PORT=5432}
 `)
 
 substituted := config.SubstituteEnvVars(yamlContent)
