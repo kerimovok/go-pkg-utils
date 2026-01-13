@@ -1,0 +1,126 @@
+package pagination
+
+import (
+	"log"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/kerimovok/go-pkg-utils/httpx"
+	"github.com/kerimovok/go-pkg-utils/validator"
+	"gorm.io/gorm"
+)
+
+// Params represents pagination query parameters
+type Params struct {
+	Page      int    `query:"page" validate:"min=1"`
+	Limit     int    `query:"limit" validate:"min=1,max=100"`
+	SortBy    string `query:"sortBy"`
+	SortOrder string `query:"sortOrder" validate:"omitempty,oneof=asc desc"`
+}
+
+// Defaults holds default values for pagination
+type Defaults struct {
+	Page      int
+	Limit     int
+	SortBy    string
+	SortOrder string
+}
+
+// Default returns sensible defaults for pagination
+func Default() Defaults {
+	return Defaults{
+		Page:      1,
+		Limit:     20,
+		SortBy:    "created_at",
+		SortOrder: "desc",
+	}
+}
+
+// ParseParams parses and validates pagination parameters from Fiber context
+func ParseParams(c *fiber.Ctx, defaults Defaults) (*Params, error) {
+	var params Params
+	if err := c.QueryParser(&params); err != nil {
+		return nil, err
+	}
+
+	// Validate
+	if err := validator.ValidateStruct(&params); err != nil {
+		return nil, err
+	}
+
+	// Apply defaults
+	if params.Page <= 0 {
+		params.Page = defaults.Page
+	}
+	if params.Limit <= 0 {
+		params.Limit = defaults.Limit
+	}
+	if params.SortBy == "" {
+		params.SortBy = defaults.SortBy
+	}
+	if params.SortOrder == "" {
+		params.SortOrder = defaults.SortOrder
+	}
+
+	return &params, nil
+}
+
+// Query applies pagination to a GORM query and returns results with metadata
+func Query[T any](
+	query *gorm.DB,
+	params *Params,
+	message string,
+) (*httpx.PaginatedResponse, error) {
+	// Clone query for counting (before applying limit/offset)
+	// Use Session to create a new query instance with the same conditions
+	countQuery := query.Session(&gorm.Session{})
+
+	// Get total count
+	var total int64
+	if err := countQuery.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Apply sorting and pagination
+	offset := (params.Page - 1) * params.Limit
+	query = query.Order(params.SortBy + " " + params.SortOrder).
+		Offset(offset).
+		Limit(params.Limit)
+
+	// Execute query
+	var results []T
+	if err := query.Find(&results).Error; err != nil {
+		return nil, err
+	}
+
+	// Build paginated response
+	pagination := httpx.NewPagination(params.Page, params.Limit, total)
+	response := httpx.Paginated(message, results, pagination)
+
+	return &response, nil
+}
+
+// HandleRequest is a convenience function that handles the full pagination flow
+// It parses, validates, applies defaults, executes query, and returns response
+func HandleRequest[T any](
+	c *fiber.Ctx,
+	query *gorm.DB,
+	defaults Defaults,
+	message string,
+) error {
+	// Parse and validate pagination params
+	params, err := ParseParams(c, defaults)
+	if err != nil {
+		response := httpx.BadRequest("Invalid query parameters", err)
+		return httpx.SendResponse(c, response)
+	}
+
+	// Execute paginated query
+	response, err := Query[T](query, params, message)
+	if err != nil {
+		log.Printf("failed to paginate query: %v", err)
+		response := httpx.InternalServerError("Failed to retrieve data", err)
+		return httpx.SendResponse(c, response)
+	}
+
+	return httpx.SendPaginatedResponse(c, *response)
+}
