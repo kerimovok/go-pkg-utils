@@ -1,7 +1,8 @@
 package pagination
 
 import (
-	"log"
+	"context"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/kerimovok/go-pkg-utils/httpx"
@@ -66,13 +67,14 @@ func ParseParams(c *fiber.Ctx, defaults Defaults) (*Params, error) {
 
 // Query applies pagination to a GORM query and returns results with metadata
 func Query[T any](
+	ctx context.Context,
 	query *gorm.DB,
 	params *Params,
 	message string,
 ) (*httpx.PaginatedResponse, error) {
 	// Clone query for counting (before applying limit/offset)
 	// Use Session to create a new query instance with the same conditions
-	countQuery := query.Session(&gorm.Session{})
+	countQuery := query.Session(&gorm.Session{}).WithContext(ctx)
 
 	// Get total count
 	var total int64
@@ -82,7 +84,7 @@ func Query[T any](
 
 	// Apply sorting and pagination
 	offset := (params.Page - 1) * params.Limit
-	query = query.Order(params.SortBy + " " + params.SortOrder).
+	query = query.WithContext(ctx).Order(params.SortBy + " " + params.SortOrder).
 		Offset(offset).
 		Limit(params.Limit)
 
@@ -114,10 +116,14 @@ func HandleRequest[T any](
 		return httpx.SendResponse(c, response)
 	}
 
+	// Create context with timeout from request context
+	ctx, cancel := context.WithTimeout(c.Context(), 30*time.Second)
+	defer cancel()
+
 	// Execute paginated query
-	response, err := Query[T](query, params, message)
+	response, err := Query[T](ctx, query, params, message)
 	if err != nil {
-		log.Printf("failed to paginate query: %v", err)
+		// Error logging should be handled by the caller or middleware
 		response := httpx.InternalServerError("Failed to retrieve data", err)
 		return httpx.SendResponse(c, response)
 	}
