@@ -43,12 +43,7 @@ func ParseParams(c *fiber.Ctx, defaults Defaults) (*Params, error) {
 		return nil, err
 	}
 
-	// Validate
-	if err := validator.ValidateStruct(&params); err != nil {
-		return nil, err
-	}
-
-	// Apply defaults
+	// Apply defaults first (before validation) for missing/zero values
 	if params.Page <= 0 {
 		params.Page = defaults.Page
 	}
@@ -60,6 +55,11 @@ func ParseParams(c *fiber.Ctx, defaults Defaults) (*Params, error) {
 	}
 	if params.SortOrder == "" {
 		params.SortOrder = defaults.SortOrder
+	}
+
+	// Validate after defaults are applied
+	if err := validator.ValidateStruct(&params); err != nil {
+		return nil, err
 	}
 
 	return &params, nil
