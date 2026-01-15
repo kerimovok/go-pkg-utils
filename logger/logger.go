@@ -40,15 +40,20 @@ func NewLogger(config *Config) (*zap.Logger, error) {
 			multiWriteSyncer,
 			parseLogLevel(config.Level),
 		)
-		logger = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
+		// Disable automatic stack traces - we'll add them conditionally in middleware
+		logger = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.FatalLevel))
 	} else {
 		// Development logger with console output
 		devConfig := zap.NewDevelopmentConfig()
 		devConfig.Level = zap.NewAtomicLevelAt(parseLogLevel(config.Level))
+		// Disable automatic stack traces - we'll add them conditionally in middleware
+		devConfig.DisableStacktrace = true
 		logger, err = devConfig.Build()
 		if err != nil {
 			return nil, err
 		}
+		// Override to only show stack traces for fatal errors (which we won't use)
+		logger = logger.WithOptions(zap.AddStacktrace(zapcore.FatalLevel))
 	}
 
 	return logger, nil
