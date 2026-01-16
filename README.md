@@ -1,6 +1,6 @@
 # go-pkg-utils
 
-A comprehensive Go utilities package providing essential functionality for modern Go applications including configuration management, HTTP responses, string manipulation, cryptography, collections, validation, error handling, and more.
+A comprehensive Go utilities package providing essential functionality for modern Go applications including configuration management, HTTP responses, string manipulation, cryptography, collections, validation, error handling, structured logging, pagination, message queues, Lua scripting, and more.
 
 ## 🚀 Features
 
@@ -16,6 +16,10 @@ A comprehensive Go utilities package providing essential functionality for moder
 -   **💬 Messages**: Predefined success and error messages
 -   **🌐 Network**: IP address extraction and validation utilities
 -   **🆔 UUID**: UUID utilities and validation
+-   **📋 Logging**: Structured logging with Zap, file rotation, and Fiber middleware integration
+-   **📄 Pagination**: GORM-based pagination utilities with Fiber integration and query parameter parsing
+-   **📨 Queue**: RabbitMQ producer/consumer with automatic reconnection, retry logic, and dead letter queues
+-   **🎯 Lua Scripting**: Sandboxed Lua script execution with worker pools, timeout handling, and result recording
 
 ## 📦 Installation
 
@@ -34,8 +38,12 @@ go-pkg-utils/
 ├── errors/         # Structured error handling system
 ├── httpx/          # HTTP response utilities for Fiber
 ├── jsonx/          # Advanced JSON processing utilities
+├── logger/         # Structured logging with Zap and Fiber middleware
+├── lua/            # Sandboxed Lua script execution and worker pools
 ├── messages/       # Predefined message constants
 ├── net/           # Network utilities (IP extraction)
+├── pagination/    # GORM pagination utilities with Fiber integration
+├── queue/         # RabbitMQ producer/consumer with retry and DLQ support
 ├── text/          # String manipulation and processing
 ├── uuid/          # UUID utilities
 └── validator/     # Configuration and struct validation
@@ -390,6 +398,242 @@ err := handler.SafeExecute(func() error {
     // Your code that might panic
     return nil
 })
+```
+
+### Logging
+
+```go
+import "github.com/kerimovok/go-pkg-utils/logger"
+import "go.uber.org/zap"
+
+// Create logger from configuration
+config := &logger.Config{
+    Enabled:    func() *bool { b := true; return &b }(),
+    FilePath:   "/var/log/app.log",
+    MaxSize:    104857600, // 100MB
+    MaxBackups: 3,
+    MaxAge:     28, // days
+    Level:      "info",
+}
+
+log, err := logger.NewLogger(config)
+if err != nil {
+    log.Fatal("Failed to initialize logger:", err)
+}
+defer log.Sync()
+
+// Use logger
+log.Info("Application started", zap.String("version", "1.0.0"))
+log.Error("Something went wrong", zap.Error(err))
+
+// Setup Fiber middleware
+app := fiber.New()
+loggerInstance, err := logger.SetupFiberLogger(app, config)
+if err != nil {
+    log.Fatal("Failed to setup logger:", err)
+}
+defer loggerInstance.Sync()
+
+// Development logger (console output, colored)
+devLogger, err := logger.NewDevelopmentLogger()
+
+// Production logger (JSON output, file rotation)
+prodLogger, err := logger.NewProductionLogger("/var/log/app.log", 100, 3, 28)
+```
+
+### Pagination
+
+```go
+import "github.com/kerimovok/go-pkg-utils/pagination"
+import "gorm.io/gorm"
+
+// Define your model
+type User struct {
+    ID        uint
+    Name      string
+    Email     string
+    CreatedAt time.Time
+}
+
+// Simple pagination handler
+func GetUsers(c *fiber.Ctx, db *gorm.DB) error {
+    defaults := pagination.Default() // Page: 1, Limit: 20, SortBy: "created_at", SortOrder: "desc"
+    
+    // Customize defaults if needed
+    defaults.SortBy = "name"
+    defaults.Limit = 10
+    
+    return pagination.HandleRequest[User](c, db.Model(&User{}), defaults, "Users retrieved successfully")
+}
+
+// Manual pagination with custom query
+func GetFilteredUsers(c *fiber.Ctx, db *gorm.DB) error {
+    defaults := pagination.Default()
+    params, err := pagination.ParseParams(c, defaults)
+    if err != nil {
+        response := httpx.BadRequest("Invalid pagination parameters", err)
+        return httpx.SendResponse(c, response)
+    }
+    
+    // Build custom query
+    query := db.Model(&User{}).Where("active = ?", true)
+    
+    // Execute paginated query
+    ctx := c.Context()
+    response, err := pagination.Query[User](ctx, query, params, "Active users retrieved")
+    if err != nil {
+        response := httpx.InternalServerError("Failed to retrieve users", err)
+        return httpx.SendResponse(c, response)
+    }
+    
+    return httpx.SendPaginatedResponse(c, *response)
+}
+```
+
+### Queue (RabbitMQ)
+
+```go
+import "github.com/kerimovok/go-pkg-utils/queue"
+import "github.com/kerimovok/go-pkg-utils/queue/events"
+
+// Producer setup
+connConfig := queue.ConnectionConfig{
+    Host:     "localhost",
+    Port:     "5672",
+    Username: "guest",
+    Password: "guest",
+    VHost:    "/",
+}
+
+queueConfig := &queue.Config{
+    ExchangeName:    "my_exchange",
+    QueueName:       "my_queue",
+    RoutingKey:      "my.routing.key",
+    DLXExchangeName: "my_exchange.dlx",
+    DLQName:         "my_dlq",
+    DLQRoutingKey:   "my.failed",
+}
+
+producer, err := queue.NewProducer(connConfig, queueConfig)
+if err != nil {
+    log.Fatal("Failed to create producer:", err)
+}
+defer producer.Close()
+
+// Publish message
+headers := amqp.Table{
+    "x-custom-header": "value",
+}
+err = producer.Publish(ctx, []byte(`{"message": "hello"}`), headers)
+
+// Consumer setup with retry
+retryConfig := queue.RetryConfig{
+    MaxRetries:     3,
+    RetryDelayBase: 1, // seconds
+    MaxRetryDelay:  60, // seconds
+}
+
+handler := func(msg amqp.Delivery) error {
+    // Process message
+    var data map[string]interface{}
+    if err := json.Unmarshal(msg.Body, &data); err != nil {
+        return err // Will trigger retry
+    }
+    
+    // Process data...
+    return nil // Success - message will be acknowledged
+}
+
+consumer, err := queue.NewConsumer(connConfig, queueConfig, retryConfig, handler)
+if err != nil {
+    log.Fatal("Failed to create consumer:", err)
+}
+defer consumer.Close()
+
+// Start consuming
+if err := consumer.StartConsuming(); err != nil {
+    log.Fatal("Failed to start consuming:", err)
+}
+
+// Event Producer (simplified event publishing)
+eventProducer, err := events.NewProducer(connConfig, events.ProducerConfig{
+    ServiceName: "user-service",
+})
+if err != nil {
+    log.Fatal("Failed to create event producer:", err)
+}
+defer eventProducer.Close()
+
+// Publish event
+err = eventProducer.Publish(ctx, "user.created", map[string]any{
+    "user_id": "123",
+    "email":   "user@example.com",
+})
+
+// Publish asynchronously (fire and forget)
+eventProducer.PublishAsync("user.updated", map[string]any{
+    "user_id": "123",
+})
+```
+
+### Lua Scripting
+
+```go
+import "github.com/kerimovok/go-pkg-utils/lua"
+
+// Define a script
+type MyScript struct {
+    ID      string
+    Name    string
+    Version string
+    Code    string
+}
+
+func (s *MyScript) GetID() string   { return s.ID }
+func (s *MyScript) GetName() string { return s.Name }
+func (s *MyScript) GetVersion() string { return s.Version }
+func (s *MyScript) GetCode() string { return s.Code }
+
+// Create executor
+executor := lua.NewExecutor(lua.ExecutorConfig{
+    Timeout: 5 * time.Second,
+    Logger:  zapLogger, // optional
+    HostFunctions: customFunctionRegistry, // optional
+    Recorder: executionRecorder, // optional
+})
+
+// Execute script
+script := &MyScript{
+    ID:      "script-1",
+    Name:    "process_data",
+    Version: "1.0.0",
+    Code: `
+        function handle(payload)
+            local result = payload.value * 2
+            print("Result: " .. result)
+        end
+    `,
+}
+
+payload := map[string]interface{}{
+    "value": 42,
+}
+
+result := executor.Execute(ctx, script, payload)
+if result.Status == lua.ExecutionStatusFailure {
+    log.Printf("Script failed: %s", *result.ErrorMessage)
+}
+
+// Worker pool for concurrent execution
+pool := lua.NewWorkerPool(10) // Max 10 concurrent executions
+
+go func() {
+    pool.Acquire()
+    defer pool.Release()
+    
+    result := executor.Execute(ctx, script, payload)
+    // Process result...
+}()
 ```
 
 ## 🔧 Configuration
