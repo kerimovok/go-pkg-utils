@@ -52,6 +52,7 @@ type ExecutorConfig struct {
 	Logger        *zap.Logger
 	HostFunctions HostFunctionRegistry
 	Recorder      ExecutionRecorder
+	Sandbox       *SandboxConfig // Optional: if nil, DefaultSandboxConfig() is used
 }
 
 // Executor executes Lua scripts with timeout, error handling, and result recording.
@@ -79,7 +80,12 @@ func (e *Executor) Execute(ctx context.Context, script Script, payload map[strin
 	var errorMsg *string
 
 	// Create a fresh sandboxed VM for this execution
-	L := NewSandboxedVM()
+	// Use provided sandbox config or default to strict sandboxing
+	sandboxConfig := DefaultSandboxConfig()
+	if e.config.Sandbox != nil {
+		sandboxConfig = *e.config.Sandbox
+	}
+	L := NewVM(sandboxConfig)
 	defer L.Close()
 
 	// Register host functions if provided
