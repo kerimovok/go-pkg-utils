@@ -61,6 +61,11 @@ func NewProducer(connConfig ConnectionConfig, queueConfig *Config) (*Producer, e
 
 // Publish publishes a message to the queue
 func (p *Producer) Publish(ctx context.Context, body []byte, headers amqp.Table) error {
+	return p.PublishWithRoutingKey(ctx, body, headers, p.config.RoutingKey)
+}
+
+// PublishWithRoutingKey publishes a message to the queue with a custom routing key
+func (p *Producer) PublishWithRoutingKey(ctx context.Context, body []byte, headers amqp.Table, routingKey string) error {
 	// Check connection health before publishing
 	p.mu.RLock()
 	if p.conn == nil || p.conn.IsClosed() || p.channel == nil || p.channel.IsClosed() {
@@ -79,7 +84,7 @@ func (p *Producer) Publish(ctx context.Context, body []byte, headers amqp.Table)
 
 	err := channel.PublishWithContext(ctx,
 		p.config.ExchangeName, // exchange
-		p.config.RoutingKey,   // routing key
+		routingKey,            // routing key (custom)
 		false,                 // mandatory
 		false,                 // immediate
 		amqp.Publishing{
