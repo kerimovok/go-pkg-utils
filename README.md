@@ -19,7 +19,7 @@ A comprehensive Go utilities package providing essential functionality for moder
 -   **📋 Logging**: Structured logging with Zap, file rotation, and Fiber middleware integration
 -   **📄 Pagination**: GORM-based pagination utilities with Fiber integration and query parameter parsing
 -   **📨 Queue**: RabbitMQ producer/consumer with automatic reconnection, retry logic, and dead letter queues
--   **🎯 Lua Scripting**: Sandboxed Lua script execution with worker pools, timeout handling, and result recording
+-   **🎯 Lua Scripting**: Configurable sandboxed Lua script execution with worker pools, timeout handling, and result recording
 
 ## 📦 Installation
 
@@ -39,7 +39,7 @@ go-pkg-utils/
 ├── httpx/          # HTTP response utilities for Fiber
 ├── jsonx/          # Advanced JSON processing utilities
 ├── logger/         # Structured logging with Zap and Fiber middleware
-├── lua/            # Sandboxed Lua script execution and worker pools
+├── lua/            # Configurable sandboxed Lua script execution and worker pools
 ├── messages/       # Predefined message constants
 ├── net/           # Network utilities (IP extraction)
 ├── pagination/    # GORM pagination utilities with Fiber integration
@@ -594,12 +594,41 @@ func (s *MyScript) GetName() string { return s.Name }
 func (s *MyScript) GetVersion() string { return s.Version }
 func (s *MyScript) GetCode() string { return s.Code }
 
-// Create executor
+// Create executor with default strict sandboxing
 executor := lua.NewExecutor(lua.ExecutorConfig{
     Timeout: 5 * time.Second,
     Logger:  zapLogger, // optional
     HostFunctions: customFunctionRegistry, // optional
     Recorder: executionRecorder, // optional
+    // Sandbox: nil // Uses DefaultSandboxConfig() - strict security
+})
+
+// Create executor with custom sandbox configuration
+customSandbox := lua.SandboxConfig{
+    EnableBase:   true,
+    EnableTable:  true,
+    EnableString: true,
+    EnableMath:   true,
+    EnableOS:     false, // Keep disabled for security
+    EnableIO:     false, // Keep disabled for security
+    EnableDebug:  false, // Keep disabled for security
+    DisableDofile:     true,
+    DisableLoadfile:   true,
+    DisableLoad:       true,
+    DisableLoadstring: true,
+}
+
+executorWithCustomSandbox := lua.NewExecutor(lua.ExecutorConfig{
+    Timeout: 5 * time.Second,
+    Logger:  zapLogger,
+    Sandbox: &customSandbox, // Custom sandbox configuration
+})
+
+// Or use the default strict configuration explicitly
+strictSandbox := lua.DefaultSandboxConfig()
+executorStrict := lua.NewExecutor(lua.ExecutorConfig{
+    Timeout: 5 * time.Second,
+    Sandbox: &strictSandbox,
 })
 
 // Execute script
@@ -634,6 +663,49 @@ go func() {
     result := executor.Execute(ctx, script, payload)
     // Process result...
 }()
+
+// Create VM directly with custom sandbox configuration
+vm := lua.NewVM(lua.SandboxConfig{
+    EnableBase:   true,
+    EnableTable:  true,
+    EnableString: true,
+    EnableMath:   true,
+    // ... other options
+})
+defer vm.Close()
+
+// Or use the backward-compatible function (uses strict defaults)
+vm := lua.NewSandboxedVM()
+defer vm.Close()
+```
+
+#### Sandbox Configuration
+
+The sandbox configuration allows you to control which Lua libraries and functions are available to scripts:
+
+```go
+// Default strict configuration (recommended)
+config := lua.DefaultSandboxConfig()
+// Only base, table, string, math libraries enabled
+// Dangerous functions (dofile, loadfile, load, loadstring) disabled
+
+// Custom configuration
+config := lua.SandboxConfig{
+    // Libraries
+    EnableBase:   true,  // Basic functions (print, type, etc.)
+    EnableTable:  true,  // Table manipulation
+    EnableString: true,  // String manipulation
+    EnableMath:   true,  // Math functions
+    EnableOS:     false, // OS functions (security risk)
+    EnableIO:     false, // IO functions (security risk)
+    EnableDebug:  false, // Debug functions (security risk)
+    
+    // Dangerous functions to disable
+    DisableDofile:     true, // Disable dofile()
+    DisableLoadfile:   true, // Disable loadfile()
+    DisableLoad:       true, // Disable load()
+    DisableLoadstring: true, // Disable loadstring()
+}
 ```
 
 ## 🔧 Configuration
