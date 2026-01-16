@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	converter "github.com/kerimovok/go-lua-converter"
 	lua "github.com/yuin/gopher-lua"
 	"go.uber.org/zap"
 )
@@ -129,7 +130,7 @@ func (e *Executor) Execute(ctx context.Context, script Script, payload map[strin
 			}
 		} else {
 			// Convert payload to Lua table
-			payloadTable := MapToLuaTable(L, payload)
+			payloadTable := converter.MapToTable(L, payload)
 
 			// Call the handle function
 			if err := L.CallByParam(lua.P{

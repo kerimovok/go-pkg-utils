@@ -6,6 +6,7 @@ require (
 	github.com/gofiber/contrib/fiberzap/v2 v2.1.6
 	github.com/gofiber/fiber/v2 v2.52.10
 	github.com/google/uuid v1.6.0
+	github.com/kerimovok/go-lua-converter v1.0.0
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/yuin/gopher-lua v1.1.1
 	go.uber.org/zap v1.27.0
