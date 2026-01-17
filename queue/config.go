@@ -7,11 +7,20 @@ import (
 // Config holds the configuration for RabbitMQ queues and exchanges
 type Config struct {
 	ExchangeName    string
+	ExchangeType    string // "direct", "topic", "fanout", "headers" - defaults to "direct"
 	QueueName       string
 	RoutingKey      string
 	DLXExchangeName string
 	DLQName         string
 	DLQRoutingKey   string
+}
+
+// getExchangeType returns the exchange type, defaulting to "direct" if not set
+func (qc *Config) getExchangeType() string {
+	if qc.ExchangeType == "" {
+		return "direct"
+	}
+	return qc.ExchangeType
 }
 
 // GetQueueArguments returns the queue arguments for both main queue and DLQ
@@ -28,13 +37,13 @@ func (qc *Config) GetQueueArguments() amqp.Table {
 // SetupExchange declares the main exchange
 func (qc *Config) SetupExchange(ch *amqp.Channel) error {
 	return ch.ExchangeDeclare(
-		qc.ExchangeName, // name
-		"direct",        // type
-		true,            // durable
-		false,           // auto-deleted
-		false,           // internal
-		false,           // no-wait
-		nil,             // arguments
+		qc.ExchangeName,    // name
+		qc.getExchangeType(), // type (defaults to "direct")
+		true,               // durable
+		false,              // auto-deleted
+		false,              // internal
+		false,              // no-wait
+		nil,                // arguments
 	)
 }
 
@@ -101,13 +110,17 @@ func (qc *Config) SetupMainQueue(ch *amqp.Channel) error {
 
 // SetupAllQueues sets up all exchanges and queues
 func (qc *Config) SetupAllQueues(ch *amqp.Channel) error {
-	// Setup dead letter queue first
-	if err := qc.SetupDeadLetterExchange(ch); err != nil {
-		return err
+	// Setup dead letter exchange and queue first (if configured)
+	if qc.DLXExchangeName != "" {
+		if err := qc.SetupDeadLetterExchange(ch); err != nil {
+			return err
+		}
 	}
 
-	if err := qc.SetupDeadLetterQueue(ch); err != nil {
-		return err
+	if qc.DLQName != "" {
+		if err := qc.SetupDeadLetterQueue(ch); err != nil {
+			return err
+		}
 	}
 
 	// Setup main exchange
@@ -115,6 +128,10 @@ func (qc *Config) SetupAllQueues(ch *amqp.Channel) error {
 		return err
 	}
 
-	// Setup main queue
-	return qc.SetupMainQueue(ch)
+	// Setup main queue (skip if not configured - producer-only mode)
+	if qc.QueueName != "" {
+		return qc.SetupMainQueue(ch)
+	}
+
+	return nil
 }
