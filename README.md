@@ -44,6 +44,8 @@ go-pkg-utils/
 ├── net/           # Network utilities (IP extraction)
 ├── pagination/    # GORM pagination utilities with Fiber integration
 ├── queue/         # RabbitMQ producer/consumer with retry and DLQ support
+│   ├── events/    # Event producer for direct exchange routing
+│   └── tasks/     # Task producer for topic exchange with wildcard routing
 ├── text/          # String manipulation and processing
 ├── uuid/          # UUID utilities
 └── validator/     # Configuration and struct validation
@@ -495,6 +497,7 @@ func GetFilteredUsers(c *fiber.Ctx, db *gorm.DB) error {
 ```go
 import "github.com/kerimovok/go-pkg-utils/queue"
 import "github.com/kerimovok/go-pkg-utils/queue/events"
+import "github.com/kerimovok/go-pkg-utils/queue/tasks"
 
 // Producer setup
 connConfig := queue.ConnectionConfig{
@@ -556,6 +559,7 @@ if err := consumer.StartConsuming(); err != nil {
 }
 
 // Event Producer (simplified event publishing)
+// Uses direct exchange with exact routing key match
 eventProducer, err := events.NewProducer(connConfig, events.ProducerConfig{
     ServiceName: "user-service",
 })
@@ -564,7 +568,7 @@ if err != nil {
 }
 defer eventProducer.Close()
 
-// Publish event
+// Publish event (routing key: "event")
 err = eventProducer.Publish(ctx, "user.created", map[string]any{
     "user_id": "123",
     "email":   "user@example.com",
@@ -574,7 +578,56 @@ err = eventProducer.Publish(ctx, "user.created", map[string]any{
 eventProducer.PublishAsync("user.updated", map[string]any{
     "user_id": "123",
 })
+
+// Task Producer (simplified task publishing)
+// Uses topic exchange with wildcard routing (tasks.<taskType>)
+taskProducer, err := tasks.NewProducer(connConfig, tasks.ProducerConfig{
+    ServiceName: "auth-service",
+})
+if err != nil {
+    log.Fatal("Failed to create task producer:", err)
+}
+defer taskProducer.Close()
+
+// Publish task (routing key automatically: "tasks.email.verify")
+err = taskProducer.Publish(ctx, "email.verify", map[string]any{
+    "to":       "user@example.com",
+    "template": "verify-email",
+    "data": map[string]any{
+        "token": "abc123",
+    },
+})
+
+// Publish asynchronously (fire and forget)
+taskProducer.PublishAsync("email.send", map[string]any{
+    "to":      "user@example.com",
+    "subject": "Welcome",
+})
+
+// Publish with custom routing key (override default pattern)
+err = taskProducer.PublishWithCustomRoutingKey(ctx, "email.verify", payload, "tasks.custom.route")
 ```
+
+#### Event vs Task Producers
+
+**Events Producer** (`queue/events`):
+- **Exchange Type**: `direct` (exact routing key match)
+- **Routing Key**: `"event"` (fixed)
+- **Use Case**: Event-driven architecture, event sourcing, audit logs
+- **Message Structure**: `{service, type, payload}`
+
+**Tasks Producer** (`queue/tasks`):
+- **Exchange Type**: `topic` (wildcard routing support)
+- **Routing Key**: `"tasks.<taskType>"` (auto-constructed from task type)
+- **Use Case**: Task queues, job processing, async operations
+- **Message Structure**: `{service, type, payload}`
+- **Example**: Task type `"email.verify"` → routing key `"tasks.email.verify"`
+
+Both producers automatically:
+- Add timestamps to payloads
+- Handle connection management and reconnection
+- Support async publishing (fire and forget)
+- Use consistent message structure with service, type, and payload
 
 ### Lua Scripting
 

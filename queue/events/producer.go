@@ -19,10 +19,11 @@ type Event struct {
 // Default queue configuration for events
 var defaultQueueConfig = &queue.Config{
 	ExchangeName:    "events",
-	QueueName:       "event_queue",
+	ExchangeType:    "direct", // Direct exchange for exact routing key match
+	QueueName:       "",       // Producers don't create queues, consumers do
 	RoutingKey:      "event",
 	DLXExchangeName: "events.dlx",
-	DLQName:         "event_dlq",
+	DLQName:         "",
 	DLQRoutingKey:   "event.failed",
 }
 
