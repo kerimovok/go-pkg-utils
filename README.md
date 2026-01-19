@@ -494,6 +494,158 @@ func GetFilteredUsers(c *fiber.Ctx, db *gorm.DB) error {
 }
 ```
 
+### Filtering
+
+The filter package provides a unified query filtering system that can be reused across microservices. It supports various operators and automatically handles type conversion.
+
+```go
+import "github.com/kerimovok/go-pkg-utils/filter"
+import "gorm.io/gorm"
+
+// Define your model
+type QRCode struct {
+    ID        uuid.UUID
+    Data      string
+    Status    string
+    Size      int
+    CreatedAt time.Time
+}
+
+// Simple filtering with defaults
+func ListQRCodes(c *fiber.Ctx, db *gorm.DB) error {
+    // Configure allowed fields and their types
+    filterConfig := &filter.Config{
+        AllowedFields: map[string]string{
+            "status":     "string",
+            "created_at": "time",
+            "size":       "int",
+            "data":       "string",
+        },
+        CustomValidators: map[string]func(value string) error{
+            "status": func(value string) error {
+                allowed := map[string]bool{"active": true, "inactive": true, "archived": true}
+                if !allowed[value] {
+                    return fmt.Errorf("invalid status: %s", value)
+                }
+                return nil
+            },
+        },
+    }
+
+    // Build query
+    query := db.Model(&QRCode{})
+
+    // Apply filters from query parameters
+    // Format: field_operator=value
+    // Examples:
+    //   ?status_eq=active
+    //   ?created_at_gte=2024-01-01
+    //   ?size_gt=300
+    //   ?data_like=example
+    //   ?status_in=active,inactive
+    var err error
+    query, err = filter.ApplyFiltersFromContext(c, query, filterConfig)
+    if err != nil {
+        response := httpx.BadRequest("Invalid filter parameters", err)
+        return httpx.SendResponse(c, response)
+    }
+
+    // Use with pagination
+    defaults := pagination.Default()
+    return pagination.HandleRequest[QRCode](c, query, defaults, "QR codes retrieved successfully")
+}
+```
+
+#### Supported Operators
+
+- `eq` - Equals: `?status_eq=active`
+- `ne` - Not equals: `?status_ne=deleted`
+- `gt` - Greater than: `?size_gt=300`
+- `gte` - Greater than or equal: `?created_at_gte=2024-01-01`
+- `lt` - Less than: `?size_lt=500`
+- `lte` - Less than or equal: `?created_at_lte=2024-12-31`
+- `like` - Like (for strings): `?data_like=example` (adds `%` wildcards automatically)
+- `in` - In (for arrays): `?status_in=active,inactive,archived`
+- `not_in` - Not in (for arrays): `?status_not_in=deleted,archived`
+
+#### Query Parameter Format
+
+Filters use the format: `field_operator=value`
+
+**Examples:**
+```
+GET /api/v1/qrcodes?status_eq=active&created_at_gte=2024-01-01&size_gt=300
+GET /api/v1/qrcodes?status_in=active,inactive&data_like=example
+GET /api/v1/qrcodes?created_at_lte=2024-12-31T23:59:59Z
+```
+
+#### Field Type Conversion
+
+The filter automatically converts values based on the field type specified in `AllowedFields`:
+
+- `string` - Default, no conversion
+- `int` or `integer` - Converts to integer
+- `float` or `float64` - Converts to float
+- `bool` or `boolean` - Converts to boolean (`true`, `1` = true)
+- `time`, `datetime`, or `date` - Parses time (supports RFC3339, `2006-01-02`, `2006-01-02T15:04:05`)
+
+#### Advanced Usage
+
+```go
+// Field mapping (map query field names to database column names)
+filterConfig := &filter.Config{
+    FieldMapping: map[string]string{
+        "uploadedAfter":  "created_at",  // Query: uploadedAfter_gte, DB: created_at
+        "uploadedBefore": "created_at", // Query: uploadedBefore_lte, DB: created_at
+    },
+    AllowedFields: map[string]string{
+        "uploadedAfter":  "time",
+        "uploadedBefore": "time",
+    },
+}
+
+// Manual filter parsing and application
+filters, err := filter.ParseFilters(c, filterConfig)
+if err != nil {
+    return httpx.BadRequest("Invalid filters", err)
+}
+
+query := filter.ApplyFilters(db.Model(&Model{}), filters)
+
+// Combine with custom query conditions
+query = query.Where("deleted_at IS NULL")
+query = filter.ApplyFilters(query, filters)
+```
+
+#### Integration with Pagination
+
+Filters work seamlessly with the pagination package:
+
+```go
+func ListResources(c *fiber.Ctx, db *gorm.DB) error {
+    // Configure filters
+    filterConfig := &filter.Config{
+        AllowedFields: map[string]string{
+            "status":     "string",
+            "created_at": "time",
+        },
+    }
+
+    // Build query with filters
+    query := db.Model(&Resource{})
+    query, err := filter.ApplyFiltersFromContext(c, query, filterConfig)
+    if err != nil {
+        return httpx.BadRequest("Invalid filters", err)
+    }
+
+    // Apply pagination
+    defaults := pagination.Default()
+    return pagination.HandleRequest[Resource](c, query, defaults, "Resources retrieved")
+}
+```
+
+**Note**: The filter package automatically skips reserved pagination parameters (`page`, `limit`, `sortBy`, `sortOrder`).
+
 ### Queue (RabbitMQ)
 
 ```go
