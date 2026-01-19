@@ -18,6 +18,7 @@ A comprehensive Go utilities package providing essential functionality for moder
 -   **🆔 UUID**: UUID utilities and validation
 -   **📋 Logging**: Structured logging with Zap, file rotation, and Fiber middleware integration
 -   **📄 Pagination**: GORM-based pagination utilities with Fiber integration and query parameter parsing
+-   **🔍 Filtering**: Unified query filter system with field operators (eq, gt, gte, lt, lte, like, in, not_in) for reusable filtering across microservices
 -   **📨 Queue**: RabbitMQ producer/consumer with automatic reconnection, retry logic, and dead letter queues
 -   **🎯 Lua Scripting**: Configurable sandboxed Lua script execution with worker pools, timeout handling, and result recording
 
@@ -41,6 +42,7 @@ go-pkg-utils/
 ├── logger/         # Structured logging with Zap and Fiber middleware
 ├── lua/            # Configurable sandboxed Lua script execution and worker pools
 ├── messages/       # Predefined message constants
+├── filter/        # Unified query filter system with operators for GORM queries
 ├── net/           # Network utilities (IP extraction)
 ├── pagination/    # GORM pagination utilities with Fiber integration
 ├── queue/         # RabbitMQ producer/consumer with retry and DLQ support
