@@ -8,6 +8,7 @@ A comprehensive Go utilities package providing essential functionality for moder
 -   **🌐 HTTP Responses**: Standardized API response structures with comprehensive HTTP status code support and Fiber integration
 -   **📝 Text Processing**: String manipulation, case conversion, validation, and more
 -   **🔐 Cryptography**: Secure random generation, password hashing, AES/RSA encryption, JWT
+-   **🔒 HMAC Authentication**: HMAC-authenticated HTTP client for secure service-to-service communication
 -   **📊 Collections**: Generic utilities for slices and maps with functional programming support
 -   **📅 Date/Time**: Comprehensive time manipulation and formatting utilities
 -   **🔄 JSON**: Advanced JSON marshaling, unmarshaling, and manipulation
@@ -38,6 +39,7 @@ go-pkg-utils/
 ├── datetime/       # Time and date manipulation utilities
 ├── errors/         # Structured error handling system
 ├── httpx/          # HTTP response utilities for Fiber
+├── hmac/           # HMAC-authenticated HTTP client for service-to-service communication
 ├── jsonx/          # Advanced JSON processing utilities
 ├── logger/         # Structured logging with Zap and Fiber middleware
 ├── lua/            # Configurable sandboxed Lua script execution and worker pools
@@ -246,6 +248,93 @@ claims := crypto.JWTClaims{
 token, err := jwt.CreateToken(claims)
 parsedClaims, err := jwt.VerifyToken(token)
 ```
+
+### HMAC Authentication
+
+The HMAC package provides a secure HTTP client for service-to-service communication using HMAC-SHA256 signatures. The signature includes the HTTP method, path, query string, timestamp, and request body to prevent request tampering.
+
+```go
+import "github.com/kerimovok/go-pkg-utils/hmac"
+
+// Create HMAC client
+client := hmac.NewClient(hmac.Config{
+    BaseURL:    "https://api.example.com",
+    HMACSecret: "your-secret-key",
+    Timeout:    10 * time.Second, // Optional, defaults to 10s
+})
+
+// Make authenticated request with JSON body
+type RequestBody struct {
+    UserID string `json:"user_id"`
+    Action string `json:"action"`
+}
+
+body := RequestBody{
+    UserID: "123",
+    Action: "verify",
+}
+
+resp, err := client.DoRequest("POST", "/api/v1/users/verify", body)
+if err != nil {
+    log.Fatal("Request failed:", err)
+}
+defer resp.Body.Close()
+
+// Parse JSON response
+var result map[string]interface{}
+if err := hmac.ParseJSONResponse(resp, &result); err != nil {
+    log.Fatal("Failed to parse response:", err)
+}
+
+// Make request with raw body bytes
+bodyBytes := []byte(`{"key": "value"}`)
+resp, err := client.DoRequestWithBody("POST", "/api/v1/data", bodyBytes)
+
+// Compute signature manually (for server-side validation)
+signature := hmac.ComputeSignature(
+    "POST",
+    "/api/v1/users",
+    "status=active",
+    "1234567890",
+    []byte(`{"id": "123"}`),
+    "secret-key",
+)
+
+// Validate signature (for server-side middleware)
+isValid := hmac.ValidateSignature(
+    "POST",
+    "/api/v1/users",
+    "status=active",
+    "1234567890",
+    []byte(`{"id": "123"}`),
+    "computed-signature",
+    "secret-key",
+)
+```
+
+#### Signature Format
+
+The HMAC signature is computed as:
+```
+HMAC-SHA256(method + path + query + timestamp + body, secret)
+```
+
+**Components:**
+- `method`: HTTP method (GET, POST, PUT, DELETE, etc.)
+- `path`: Request path (e.g., `/api/v1/users`)
+- `query`: Query string without `?` prefix (e.g., `status=active&limit=10`)
+- `timestamp`: Unix timestamp as string (e.g., `"1234567890"`)
+- `body`: Raw request body bytes
+
+**Headers:**
+- `X-Signature`: The computed HMAC-SHA256 signature (hex-encoded)
+- `X-Timestamp`: Unix timestamp of the request
+
+**Security Features:**
+- Constant-time signature comparison to prevent timing attacks
+- Timestamp included to prevent replay attacks
+- All request components included in signature to prevent tampering
+- Automatic JSON marshaling for request bodies
 
 ### Collections
 
