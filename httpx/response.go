@@ -25,13 +25,13 @@ type PaginatedResponse struct {
 // Pagination contains pagination metadata
 type Pagination struct {
 	Page         int   `json:"page"`
-	PerPage      int   `json:"per_page"`
+	PerPage      int   `json:"perPage"`
 	Total        int64 `json:"total"`
-	TotalPages   int   `json:"total_pages"`
-	HasNext      bool  `json:"has_next"`
-	HasPrevious  bool  `json:"has_previous"`
-	NextPage     *int  `json:"next_page,omitempty"`
-	PreviousPage *int  `json:"previous_page,omitempty"`
+	TotalPages   int   `json:"totalPages"`
+	HasNext      bool  `json:"hasNext"`
+	HasPrevious  bool  `json:"hasPrevious"`
+	NextPage     *int  `json:"nextPage,omitempty"`
+	PreviousPage *int  `json:"previousPage,omitempty"`
 }
 
 // ValidationError represents a field validation error
