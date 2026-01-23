@@ -92,9 +92,11 @@ func (c *Client) DoRequest(method, path string, body interface{}) (*http.Respons
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	req.Header.Set(HeaderTimestamp, timestamp)
 
-	// Compute signature
+	// Compute signature using the parsed URL components
+	// Extract path and query from the parsed URL to avoid double-inclusion
+	signaturePath := req.URL.Path
 	query := req.URL.RawQuery
-	signature := ComputeSignature(method, path, query, timestamp, bodyBytes, c.HMACSecret)
+	signature := ComputeSignature(method, signaturePath, query, timestamp, bodyBytes, c.HMACSecret)
 	req.Header.Set(HeaderSignature, signature)
 
 	// Make request
@@ -121,9 +123,11 @@ func (c *Client) DoRequestWithBody(method, path string, bodyBytes []byte) (*http
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	req.Header.Set(HeaderTimestamp, timestamp)
 
-	// Compute signature
+	// Compute signature using the parsed URL components
+	// Extract path and query from the parsed URL to avoid double-inclusion
+	signaturePath := req.URL.Path
 	query := req.URL.RawQuery
-	signature := ComputeSignature(method, path, query, timestamp, bodyBytes, c.HMACSecret)
+	signature := ComputeSignature(method, signaturePath, query, timestamp, bodyBytes, c.HMACSecret)
 	req.Header.Set(HeaderSignature, signature)
 
 	// Make request
