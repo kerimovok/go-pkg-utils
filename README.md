@@ -322,7 +322,7 @@ HMAC-SHA256(method + path + query + timestamp + body, secret)
 **Components:**
 - `method`: HTTP method (GET, POST, PUT, DELETE, etc.)
 - `path`: Request path (e.g., `/api/v1/users`)
-- `query`: Query string without `?` prefix (e.g., `status=active&limit=10`)
+- `query`: Query string without `?` prefix (e.g., `status=active&per_page=10`)
 - `timestamp`: Unix timestamp as string (e.g., `"1234567890"`)
 - `body`: Raw request body bytes
 
@@ -550,11 +550,11 @@ type User struct {
 
 // Simple pagination handler
 func GetUsers(c *fiber.Ctx, db *gorm.DB) error {
-    defaults := pagination.Default() // Page: 1, Limit: 20, SortBy: "created_at", SortOrder: "desc"
+    defaults := pagination.Default() // Page: 1, PerPage: 20, SortBy: "created_at", SortOrder: "desc"
     
     // Customize defaults if needed
     defaults.SortBy = "name"
-    defaults.Limit = 10
+    defaults.PerPage = 10
     
     return pagination.HandleRequest[User](c, db.Model(&User{}), defaults, "Users retrieved successfully")
 }
@@ -733,7 +733,7 @@ func ListResources(c *fiber.Ctx, db *gorm.DB) error {
 }
 ```
 
-**Note**: The filter package automatically skips reserved pagination parameters (`page`, `limit`, `sortBy`, `sortOrder`).
+**Note**: The filter package automatically skips reserved pagination parameters (`page`, `per_page`, `sort_by`, `sort_order`).
 
 ### Queue (RabbitMQ)
 
@@ -1353,7 +1353,7 @@ response := httpx.OK("User created", user)
 return httpx.SendResponse(c, response)
 
 // Include pagination for lists
-pagination := httpx.NewPagination(page, limit, total)
+pagination := httpx.NewPagination(page, perPage, total)
 response := httpx.Paginated("Users retrieved", users, pagination)
 return httpx.SendPaginatedResponse(c, response)
 ```

@@ -270,11 +270,12 @@ func applyFilter(query *gorm.DB, f Filter) *gorm.DB {
 }
 
 // isReservedParam checks if a parameter is reserved for pagination/sorting
+// Uses case-insensitive matching to support both snake_case and camelCase
 func isReservedParam(key string) bool {
-	reserved := []string{"page", "limit", "sortBy", "sortOrder"}
+	reserved := []string{"page", "per_page", "sort_by", "sort_order"}
 	keyLower := strings.ToLower(key)
 	for _, r := range reserved {
-		if keyLower == r {
+		if keyLower == strings.ToLower(r) {
 			return true
 		}
 	}

@@ -13,15 +13,15 @@ import (
 // Params represents pagination query parameters
 type Params struct {
 	Page      int    `query:"page" validate:"min=1"`
-	Limit     int    `query:"limit" validate:"min=1,max=100"`
-	SortBy    string `query:"sortBy"`
-	SortOrder string `query:"sortOrder" validate:"omitempty,oneof=asc desc"`
+	PerPage   int    `query:"per_page" validate:"min=1,max=100"`             // Items per page
+	SortBy    string `query:"sort_by"`                                       // Sort field name
+	SortOrder string `query:"sort_order" validate:"omitempty,oneof=asc desc"` // Sort order: asc or desc
 }
 
 // Defaults holds default values for pagination
 type Defaults struct {
 	Page      int
-	Limit     int
+	PerPage   int
 	SortBy    string
 	SortOrder string
 }
@@ -30,7 +30,7 @@ type Defaults struct {
 func Default() Defaults {
 	return Defaults{
 		Page:      1,
-		Limit:     20,
+		PerPage:   20,
 		SortBy:    "created_at",
 		SortOrder: "desc",
 	}
@@ -47,8 +47,8 @@ func ParseParams(c *fiber.Ctx, defaults Defaults) (*Params, error) {
 	if params.Page <= 0 {
 		params.Page = defaults.Page
 	}
-	if params.Limit <= 0 {
-		params.Limit = defaults.Limit
+	if params.PerPage <= 0 {
+		params.PerPage = defaults.PerPage
 	}
 	if params.SortBy == "" {
 		params.SortBy = defaults.SortBy
@@ -72,7 +72,7 @@ func Query[T any](
 	params *Params,
 	message string,
 ) (*httpx.PaginatedResponse, error) {
-	// Clone query for counting (before applying limit/offset)
+	// Clone query for counting (before applying per_page/offset)
 	// Use Session to create a new query instance with the same conditions
 	countQuery := query.Session(&gorm.Session{}).WithContext(ctx)
 
@@ -83,10 +83,10 @@ func Query[T any](
 	}
 
 	// Apply sorting and pagination
-	offset := (params.Page - 1) * params.Limit
+	offset := (params.Page - 1) * params.PerPage
 	query = query.WithContext(ctx).Order(params.SortBy + " " + params.SortOrder).
 		Offset(offset).
-		Limit(params.Limit)
+		Limit(params.PerPage)
 
 	// Execute query
 	var results []T
@@ -95,7 +95,7 @@ func Query[T any](
 	}
 
 	// Build paginated response
-	pagination := httpx.NewPagination(params.Page, params.Limit, total)
+	pagination := httpx.NewPagination(params.Page, params.PerPage, total)
 	response := httpx.Paginated(message, results, pagination)
 
 	return &response, nil
