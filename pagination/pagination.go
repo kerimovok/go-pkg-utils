@@ -2,6 +2,7 @@ package pagination
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -9,6 +10,24 @@ import (
 	"github.com/kerimovok/go-pkg-utils/validator"
 	"gorm.io/gorm"
 )
+
+// OrderClause returns an ORDER BY clause (column + direction) from sort params and an allowlist.
+// sortBy is the requested field (e.g. "name"); sortOrder is "asc" or "desc".
+// fieldToColumn maps allowed API field names to DB column names (e.g. "name" -> "roles.name").
+// defaultColumn is used when sortBy is not in the map.
+func OrderClause(sortBy, sortOrder string, fieldToColumn map[string]string, defaultColumn string) string {
+	column := defaultColumn
+	if fieldToColumn != nil {
+		if c, ok := fieldToColumn[sortBy]; ok {
+			column = c
+		}
+	}
+	dir := "ASC"
+	if strings.ToLower(sortOrder) == "desc" {
+		dir = "DESC"
+	}
+	return column + " " + dir
+}
 
 // Params represents pagination query parameters
 type Params struct {
