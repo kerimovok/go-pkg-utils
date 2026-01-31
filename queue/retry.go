@@ -18,8 +18,13 @@ type RetryConfig struct {
 func GetRetryCount(msg amqp.Delivery) int {
 	if msg.Headers != nil {
 		if retryCount, exists := msg.Headers["x-retry-count"]; exists {
-			if count, ok := retryCount.(int32); ok {
-				return int(count)
+			switch v := retryCount.(type) {
+			case int32:
+				return int(v)
+			case int64:
+				return int(v)
+			case int:
+				return v
 			}
 		}
 	}
@@ -39,9 +44,13 @@ func CalculateRetryDelay(retryCount int, config RetryConfig) time.Duration {
 	return delay
 }
 
-// ScheduleRetry schedules a message for retry with delay
+// ChannelGetter returns the current consumer channel (used so retry uses channel after reconnect)
+type ChannelGetter func() *amqp.Channel
+
+// ScheduleRetry schedules a message for retry with delay.
+// getChannel is called at publish time so retries use the current channel after reconnect.
 func ScheduleRetry(
-	channel *amqp.Channel,
+	getChannel ChannelGetter,
 	config *Config,
 	body []byte,
 	headers amqp.Table,
@@ -52,12 +61,18 @@ func ScheduleRetry(
 	go func() {
 		time.Sleep(delay)
 
+		channel := getChannel()
+		if channel == nil || channel.IsClosed() {
+			log.Printf("Cannot schedule retry: channel not available")
+			return
+		}
+
 		// Publish back to the main queue with updated headers
 		err := channel.Publish(
 			config.ExchangeName, // exchange
 			config.RoutingKey,   // routing key
-			false,                // mandatory
-			false,                // immediate
+			false,               // mandatory
+			false,               // immediate
 			amqp.Publishing{
 				ContentType:  "application/json",
 				Body:         body,

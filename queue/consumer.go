@@ -158,6 +158,20 @@ func (c *Consumer) consumeLoop() {
 
 // processMessage processes a single message with retry logic
 func (c *Consumer) processMessage(msg amqp.Delivery) {
+	// Ensure message is always acked or rejected (e.g. on handler panic)
+	var ackedOrRejected bool
+	defer func() {
+		if ackedOrRejected {
+			return
+		}
+		if r := recover(); r != nil {
+			log.Printf("Handler panicked, rejecting message: %v", r)
+			if err := msg.Reject(false); err != nil {
+				log.Printf("Failed to reject message after panic: %v", err)
+			}
+		}
+	}()
+
 	retryCount := GetRetryCount(msg)
 
 	if retryCount >= c.retryConfig.MaxRetries {
@@ -165,6 +179,7 @@ func (c *Consumer) processMessage(msg amqp.Delivery) {
 		if err := msg.Reject(false); err != nil {
 			log.Printf("Failed to reject message after max retries: %v", err)
 		}
+		ackedOrRejected = true
 		return
 	}
 
@@ -182,17 +197,15 @@ func (c *Consumer) processMessage(msg amqp.Delivery) {
 		newHeaders["x-last-error"] = err.Error()
 		newHeaders["x-last-retry"] = time.Now().Unix()
 
-		// Reject message
+		// Reject message first so it is not redelivered before we publish retry
 		if err := msg.Reject(false); err != nil {
 			log.Printf("Failed to reject message for retry: %v", err)
 		}
+		ackedOrRejected = true
 
-		// Schedule retry
-		c.mu.RLock()
-		channel := c.channel
-		c.mu.RUnlock()
+		// Schedule retry using current channel at publish time (survives reconnect)
 		delay := CalculateRetryDelay(retryCount, c.retryConfig)
-		ScheduleRetry(channel, c.config, msg.Body, newHeaders, delay)
+		ScheduleRetry(c.getChannel, c.config, msg.Body, newHeaders, delay)
 		return
 	}
 
@@ -200,6 +213,14 @@ func (c *Consumer) processMessage(msg amqp.Delivery) {
 	if err := msg.Ack(false); err != nil {
 		log.Printf("Failed to acknowledge message: %v", err)
 	}
+	ackedOrRejected = true
+}
+
+// getChannel returns the current channel (for use by ScheduleRetry after reconnect)
+func (c *Consumer) getChannel() *amqp.Channel {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.channel
 }
 
 // IsConnected returns true if the consumer has a valid connection
