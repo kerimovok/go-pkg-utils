@@ -24,16 +24,16 @@ type MessageHandler func(msg amqp.Delivery) error
 
 // Consumer is a RabbitMQ consumer with automatic reconnection
 type Consumer struct {
-	conn      *amqp.Connection
-	channel   *amqp.Channel
-	mu        sync.RWMutex
-	config    *Config
-	connConfig ConnectionConfig
+	conn        *amqp.Connection
+	channel     *amqp.Channel
+	mu          sync.RWMutex
+	config      *Config
+	connConfig  ConnectionConfig
 	retryConfig RetryConfig
-	handler   MessageHandler
-	consuming bool
-	stopChan  chan struct{}
-	stopOnce  sync.Once
+	handler     MessageHandler
+	consuming   bool
+	stopChan    chan struct{}
+	stopOnce    sync.Once
 }
 
 // NewConsumer creates a new RabbitMQ consumer with automatic reconnection
@@ -65,14 +65,14 @@ func NewConsumer(connConfig ConnectionConfig, queueConfig *Config, retryConfig R
 	}
 
 	consumer := &Consumer{
-		conn:       conn,
-		channel:    ch,
-		config:     queueConfig,
-		connConfig: connConfig,
+		conn:        conn,
+		channel:     ch,
+		config:      queueConfig,
+		connConfig:  connConfig,
 		retryConfig: retryConfig,
-		handler:    handler,
-		consuming:  false,
-		stopChan:   make(chan struct{}),
+		handler:     handler,
+		consuming:   false,
+		stopChan:    make(chan struct{}),
 	}
 
 	consumer.setupConnectionRecovery()

@@ -20,7 +20,7 @@ type Task struct {
 var defaultQueueConfig = &queue.Config{
 	ExchangeName:    "tasks",
 	ExchangeType:    "topic", // Topic exchange for wildcard routing
-	QueueName:       "",       // Producers don't create queues, consumers do
+	QueueName:       "",      // Producers don't create queues, consumers do
 	RoutingKey:      "",      // Dynamic routing key set per-message
 	DLXExchangeName: "tasks.dlx",
 	DLQName:         "",

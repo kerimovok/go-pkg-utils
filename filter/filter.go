@@ -171,7 +171,7 @@ func convertValue(value, field string, operator Operator, config *Config) (inter
 	if operator == OperatorIN || operator == OperatorNOTIN {
 		values := strings.Split(value, ",")
 		var result []interface{}
-		
+
 		// Determine type from config
 		fieldType := "string"
 		if config != nil && config.AllowedFields != nil {
@@ -179,7 +179,7 @@ func convertValue(value, field string, operator Operator, config *Config) (inter
 				fieldType = ft
 			}
 		}
-		
+
 		for _, v := range values {
 			v = strings.TrimSpace(v)
 			converted, err := convertSingleValue(v, fieldType)
@@ -190,7 +190,7 @@ func convertValue(value, field string, operator Operator, config *Config) (inter
 		}
 		return result, nil
 	}
-	
+
 	// Single value conversion
 	fieldType := "string"
 	if config != nil && config.AllowedFields != nil {
@@ -198,7 +198,7 @@ func convertValue(value, field string, operator Operator, config *Config) (inter
 			fieldType = ft
 		}
 	}
-	
+
 	return convertSingleValue(value, fieldType)
 }
 

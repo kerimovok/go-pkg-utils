@@ -12,7 +12,7 @@ import (
 func FiberMiddleware(logger *zap.Logger) fiber.Handler {
 	// Disable automatic stack traces - we'll add them conditionally for server errors only
 	loggerWithoutStack := logger.WithOptions(zap.AddStacktrace(zapcore.FatalLevel))
-	
+
 	return fiberzap.New(fiberzap.Config{
 		Logger: loggerWithoutStack,
 		Fields: []string{
@@ -22,13 +22,13 @@ func FiberMiddleware(logger *zap.Logger) fiber.Handler {
 		},
 		FieldsFunc: func(c *fiber.Ctx) []zapcore.Field {
 			statusCode := c.Response().StatusCode()
-			
+
 			// Only add stack trace for 500-level server errors
 			// Client errors (4xx) don't need stack traces as they're expected business logic responses
 			if statusCode >= 500 {
 				return []zapcore.Field{zap.Stack("stacktrace")}
 			}
-			
+
 			// No additional fields for client errors
 			return []zapcore.Field{}
 		},

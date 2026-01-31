@@ -30,20 +30,20 @@ func (qc *Config) GetQueueArguments() amqp.Table {
 		"x-max-priority":            int32(10),                  // Priority support
 		"x-overflow":                "drop-head",                // Drop oldest when full
 		"x-dead-letter-exchange":    qc.DLXExchangeName,         // Dead letter exchange
-		"x-dead-letter-routing-key": qc.DLQRoutingKey,          // Routing key for DLQ
+		"x-dead-letter-routing-key": qc.DLQRoutingKey,           // Routing key for DLQ
 	}
 }
 
 // SetupExchange declares the main exchange
 func (qc *Config) SetupExchange(ch *amqp.Channel) error {
 	return ch.ExchangeDeclare(
-		qc.ExchangeName,    // name
+		qc.ExchangeName,      // name
 		qc.getExchangeType(), // type (defaults to "direct")
-		true,               // durable
-		false,              // auto-deleted
-		false,              // internal
-		false,              // no-wait
-		nil,                // arguments
+		true,                 // durable
+		false,                // auto-deleted
+		false,                // internal
+		false,                // no-wait
+		nil,                  // arguments
 	)
 }
 
