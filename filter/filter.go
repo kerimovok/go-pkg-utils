@@ -46,18 +46,25 @@ var AllowedOperators = map[Operator]bool{
 	OperatorNOTIN: true,
 }
 
+// Field type constants for AllowedFields
+const (
+	TypeUUID = "uuid" // UUID columns: eq/ne use value as-is; LIKE uses CAST(column AS TEXT)
+)
+
 // Filter represents a single filter condition
 type Filter struct {
-	Field    string
-	Operator Operator
-	Value    interface{}
+	Field     string
+	Operator  Operator
+	Value     interface{}
+	FieldType string // from Config.AllowedFields; used e.g. for UUID LIKE cast
 }
 
 // Config holds filter configuration
 type Config struct {
-	// AllowedFields is a map of allowed field names to their types
-	// If empty, all fields are allowed
-	AllowedFields map[string]string // "field_name" -> "string", "int", "time", etc.
+	// AllowedFields maps field names to types: "string", "int", "time", TypeUUID, etc.
+	// Use TypeUUID for UUID columns so that LIKE is applied as CAST(column AS TEXT) LIKE ?.
+	// If empty, all fields are allowed.
+	AllowedFields map[string]string
 	// FieldMapping maps query parameter names to database column names
 	// If empty, field names are used as-is
 	FieldMapping map[string]string
@@ -121,10 +128,18 @@ func ParseFilters(c *fiber.Ctx, config *Config) ([]Filter, error) {
 			return nil, fmt.Errorf("failed to convert value for field '%s': %w", field, err)
 		}
 
+		fieldType := ""
+		if config != nil && config.AllowedFields != nil {
+			if ft, ok := config.AllowedFields[field]; ok {
+				fieldType = ft
+			}
+		}
+
 		filters = append(filters, Filter{
-			Field:    dbField,
-			Operator: operator,
-			Value:    convertedValue,
+			Field:     dbField,
+			Operator:  operator,
+			Value:     convertedValue,
+			FieldType: fieldType,
 		})
 	}
 
@@ -233,6 +248,9 @@ func convertSingleValue(value, fieldType string) (interface{}, error) {
 			return t, nil
 		}
 		return nil, fmt.Errorf("invalid time format: %s (expected RFC3339, 2006-01-02, or 2006-01-02T15:04:05)", value)
+	case TypeUUID:
+		// Keep as string; DB drivers accept string for UUID comparison; LIKE uses CAST in applyFilter
+		return value, nil
 	default:
 		// Default to string
 		return value, nil
@@ -255,8 +273,11 @@ func applyFilter(query *gorm.DB, f Filter) *gorm.DB {
 	case OperatorLTE:
 		return query.Where(f.Field+" <= ?", f.Value)
 	case OperatorLIKE:
-		// Add % wildcards for LIKE queries
 		likeValue := fmt.Sprintf("%%%s%%", f.Value)
+		// UUID columns don't support LIKE; use CAST(column AS TEXT) (PostgreSQL/SQLite; standard SQL)
+		if f.FieldType == TypeUUID {
+			return query.Where("CAST("+f.Field+" AS TEXT) LIKE ?", likeValue)
+		}
 		return query.Where(f.Field+" LIKE ?", likeValue)
 	case OperatorIN:
 		// Value should be a comma-separated string or slice
