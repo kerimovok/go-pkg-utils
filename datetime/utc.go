@@ -90,6 +90,12 @@ func normalizeValue(v reflect.Value) {
 		}
 		normalizeValue(v.Elem())
 
+	case reflect.Interface:
+		if v.IsNil() {
+			return
+		}
+		normalizeValue(v.Elem())
+
 	case reflect.Struct:
 		// Direct time.Time value
 		if v.Type() == timeType {
@@ -111,6 +117,7 @@ func normalizeValue(v reflect.Value) {
 			// composite types that may contain time.Time values.
 			if !field.CanSet() &&
 				field.Kind() != reflect.Pointer &&
+				field.Kind() != reflect.Interface &&
 				field.Kind() != reflect.Struct &&
 				field.Kind() != reflect.Slice &&
 				field.Kind() != reflect.Array {

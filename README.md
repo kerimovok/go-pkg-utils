@@ -384,6 +384,43 @@ formatted := datetime.FormatDuration(duration)  // "2h30m"
 parsed, err := datetime.ParseDate("2023-12-25")
 ```
 
+#### UTC-normalized API responses
+
+The `datetime` package also provides helpers to **canonicalize all timestamps to UTC**
+before JSON serialization, which is especially useful when your database uses
+`timestamp without time zone` but your API contract is “always UTC”.
+
+```go
+import "github.com/kerimovok/go-pkg-utils/datetime"
+
+// Example response DTO with time.Time fields
+type SessionResponse struct {
+    ID        uuid.UUID `json:"id"`
+    UserID    uuid.UUID `json:"userId"`
+    ExpiresAt time.Time `json:"expiresAt"`
+    CreatedAt time.Time `json:"createdAt"`
+    RevokedAt *time.Time `json:"revokedAt,omitempty"`
+}
+
+// NormalizeTimeFieldsToUTC walks the struct (and nested slices/structs)
+// and converts all time.Time fields to UTC in-place.
+func ListSessions(c *fiber.Ctx) error {
+    sessions := make([]SessionResponse, 0)
+    // ... load sessions into the slice ...
+
+    datetime.NormalizeTimeFieldsToUTC(&sessions)
+
+    resp := httpx.OK("Sessions retrieved successfully", sessions)
+    return httpx.SendResponse(c, resp)
+}
+
+// Helpers for parsing / formatting RFC3339 timestamps in UTC:
+t, err := datetime.ParseRFC3339ToUTC("2026-02-09T12:12:35.472122Z")
+utc := datetime.ToUTC(t)                     // no-op if already UTC
+iso := datetime.FormatRFC3339UTC(utc)        // always RFC3339 with Z suffix
+excel := datetime.FormatExcelUTC(utc)        // "2006-01-02 15:04:05" in UTC
+```
+
 ### JSON Utilities
 
 ```go
