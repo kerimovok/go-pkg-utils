@@ -15,7 +15,7 @@ func OK(message string, data interface{}) Response {
 		Message:   message,
 		Data:      data,
 		Status:    fiber.StatusOK,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -26,7 +26,7 @@ func Created(message string, data interface{}) Response {
 		Message:   message,
 		Data:      data,
 		Status:    fiber.StatusCreated,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -37,7 +37,7 @@ func Accepted(message string, data interface{}) Response {
 		Message:   message,
 		Data:      data,
 		Status:    fiber.StatusAccepted,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -47,7 +47,7 @@ func NoContent(message string) Response {
 		Success:   true,
 		Message:   message,
 		Status:    fiber.StatusNoContent,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -58,7 +58,7 @@ func PartialContent(message string, data interface{}) Response {
 		Message:   message,
 		Data:      data,
 		Status:    fiber.StatusPartialContent,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -70,7 +70,7 @@ func NotModified(message string) Response {
 		Success:   true,
 		Message:   message,
 		Status:    fiber.StatusNotModified,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -87,7 +87,7 @@ func BadRequest(message string, err error) Response {
 		Message:   message,
 		Error:     errMsg,
 		Status:    fiber.StatusBadRequest,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -97,7 +97,7 @@ func Unauthorized(message string) Response {
 		Success:   false,
 		Message:   message,
 		Status:    fiber.StatusUnauthorized,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -107,7 +107,7 @@ func PaymentRequired(message string) Response {
 		Success:   false,
 		Message:   message,
 		Status:    fiber.StatusPaymentRequired,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -117,7 +117,7 @@ func Forbidden(message string) Response {
 		Success:   false,
 		Message:   message,
 		Status:    fiber.StatusForbidden,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -127,7 +127,7 @@ func NotFound(message string) Response {
 		Success:   false,
 		Message:   message,
 		Status:    fiber.StatusNotFound,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -137,7 +137,7 @@ func MethodNotAllowed(message string) Response {
 		Success:   false,
 		Message:   message,
 		Status:    fiber.StatusMethodNotAllowed,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -147,7 +147,7 @@ func NotAcceptable(message string) Response {
 		Success:   false,
 		Message:   message,
 		Status:    fiber.StatusNotAcceptable,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -157,7 +157,7 @@ func ProxyAuthenticationRequired(message string) Response {
 		Success:   false,
 		Message:   message,
 		Status:    fiber.StatusProxyAuthRequired,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -167,7 +167,7 @@ func RequestTimeout(message string) Response {
 		Success:   false,
 		Message:   message,
 		Status:    fiber.StatusRequestTimeout,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -182,7 +182,7 @@ func Conflict(message string, err error) Response {
 		Message:   message,
 		Error:     errMsg,
 		Status:    fiber.StatusConflict,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 
@@ -192,7 +192,7 @@ func Gone(message string) Response {
 		Success:   false,
 		Message:   message,
 		Status:    fiber.StatusGone,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 	}
 }
 

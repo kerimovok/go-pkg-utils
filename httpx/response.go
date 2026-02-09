@@ -55,7 +55,7 @@ func Paginated(message string, data interface{}, pagination *Pagination) Paginat
 			Message:   message,
 			Data:      data,
 			Status:    fiber.StatusOK,
-			Timestamp: time.Now(),
+			Timestamp: time.Now().UTC(),
 		},
 		Pagination: pagination,
 	}
