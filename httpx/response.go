@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/kerimovok/go-pkg-utils/datetime"
 )
 
 // Response represents a standard API response
@@ -89,11 +90,13 @@ func NewPagination(page, perPage int, total int64) *Pagination {
 
 // SendResponse sends a response using Fiber context
 func SendResponse(c *fiber.Ctx, response Response) error {
+	datetime.NormalizeTimeFieldsToUTC(&response)
 	return c.Status(response.Status).JSON(response)
 }
 
 // SendPaginatedResponse sends a paginated response using Fiber context
 func SendPaginatedResponse(c *fiber.Ctx, response PaginatedResponse) error {
+	datetime.NormalizeTimeFieldsToUTC(&response)
 	return c.Status(response.Status).JSON(response)
 }
 

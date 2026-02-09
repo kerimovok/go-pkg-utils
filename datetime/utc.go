@@ -1,6 +1,9 @@
 package datetime
 
-import "time"
+import (
+	"reflect"
+	"time"
+)
 
 // ParseRFC3339ToUTC parses an RFC3339 timestamp string and returns a time in UTC.
 // If parsing fails, it returns a zero time and the parse error.
@@ -62,4 +65,63 @@ func FormatExcelUTC(t time.Time) string {
 		return ""
 	}
 	return ToUTC(t).Format(ExcelDateTimeLayout)
+}
+
+var timeType = reflect.TypeOf(time.Time{})
+
+// NormalizeTimeFieldsToUTC walks through common response structures and ensures
+// all time.Time fields are converted to UTC in-place.
+//
+// It is safe to call this on pointers to structs, slices of structs, and
+// wrapper/DTO structs that contain time.Time fields.
+func NormalizeTimeFieldsToUTC(v any) {
+	normalizeValue(reflect.ValueOf(v))
+}
+
+func normalizeValue(v reflect.Value) {
+	if !v.IsValid() {
+		return
+	}
+
+	switch v.Kind() {
+	case reflect.Pointer:
+		if v.IsNil() {
+			return
+		}
+		normalizeValue(v.Elem())
+
+	case reflect.Struct:
+		// Direct time.Time value
+		if v.Type() == timeType {
+			if !v.CanSet() {
+				return
+			}
+			t := v.Interface().(time.Time)
+			if t.IsZero() {
+				return
+			}
+			v.Set(reflect.ValueOf(t.UTC()))
+			return
+		}
+
+		// Recurse into struct fields
+		for i := 0; i < v.NumField(); i++ {
+			field := v.Field(i)
+			// Skip unaddressable scalar fields, but still recurse into
+			// composite types that may contain time.Time values.
+			if !field.CanSet() &&
+				field.Kind() != reflect.Pointer &&
+				field.Kind() != reflect.Struct &&
+				field.Kind() != reflect.Slice &&
+				field.Kind() != reflect.Array {
+				continue
+			}
+			normalizeValue(field)
+		}
+
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < v.Len(); i++ {
+			normalizeValue(v.Index(i))
+		}
+	}
 }
