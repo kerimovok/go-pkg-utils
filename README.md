@@ -4,24 +4,24 @@ A comprehensive Go utilities package providing essential functionality for moder
 
 ## 🚀 Features
 
--   **🔧 Configuration**: Environment variable parsing with type safety, YAML configuration loading with environment variable substitution, and comprehensive validation
--   **🌐 HTTP Responses**: Standardized API response structures with comprehensive HTTP status code support and Fiber integration
--   **📝 Text Processing**: String manipulation, case conversion, validation, and more
--   **🔐 Cryptography**: Secure random generation, password hashing, AES/RSA encryption, JWT
--   **🔒 HMAC Authentication**: HMAC-authenticated HTTP client for secure service-to-service communication
--   **📊 Collections**: Generic utilities for slices and maps with functional programming support
--   **📅 Date/Time**: Comprehensive time manipulation and formatting utilities
--   **🔄 JSON**: Advanced JSON marshaling, unmarshaling, and manipulation
--   **✅ Validation**: Struct validation with tags and detailed error reporting
--   **🚨 Error Handling**: Structured error system with metadata and stack traces
--   **💬 Messages**: Predefined success and error messages
--   **🌐 Network**: IP address extraction and validation utilities
--   **🆔 UUID**: UUID utilities and validation
--   **📋 Logging**: Structured logging with Zap, file rotation, and Fiber middleware integration
--   **📄 Pagination**: GORM-based pagination utilities with Fiber integration and query parameter parsing
--   **🔍 Filtering**: Unified query filter system with field operators (eq, gt, gte, lt, lte, like, in, not_in) for reusable filtering across microservices
--   **📨 Queue**: RabbitMQ producer/consumer with automatic reconnection, retry logic, and dead letter queues
--   **🎯 Lua Scripting**: Configurable sandboxed Lua script execution with worker pools, timeout handling, and result recording
+- **🔧 Configuration**: Environment variable parsing with type safety, YAML configuration loading with environment variable substitution, and comprehensive validation
+- **🌐 HTTP Responses**: Standardized API response structures with comprehensive HTTP status code support and Fiber integration
+- **📝 Text Processing**: String manipulation, case conversion, validation, and more
+- **🔐 Cryptography**: Secure random generation, password hashing, AES/RSA encryption, JWT
+- **🔒 HMAC Authentication**: HMAC-authenticated HTTP client for secure service-to-service communication
+- **📊 Collections**: Generic utilities for slices and maps with functional programming support
+- **📅 Date/Time**: Comprehensive time manipulation and formatting utilities
+- **🔄 JSON**: Advanced JSON marshaling, unmarshaling, and manipulation
+- **✅ Validation**: Struct validation with tags and detailed error reporting
+- **🚨 Error Handling**: Structured error system with metadata and stack traces
+- **💬 Messages**: Predefined success and error messages
+- **🌐 Network**: IP address extraction and validation utilities
+- **🆔 UUID**: UUID utilities and validation
+- **📋 Logging**: Structured logging with Zap, file rotation, and Fiber middleware integration
+- **📄 Pagination**: GORM-based pagination utilities with Fiber integration and query parameter parsing
+- **🔍 Filtering**: Unified query filter system with field operators (eq, gt, gte, lt, lte, like, in, not_in) for reusable filtering across microservices
+- **📨 Queue**: RabbitMQ producer/consumer with automatic reconnection, retry logic, and dead letter queues
+- **🎯 Lua Scripting**: Configurable sandboxed Lua script execution with worker pools, timeout handling, and result recording
 
 ## 📦 Installation
 
@@ -45,13 +45,13 @@ go-pkg-utils/
 ├── lua/            # Configurable sandboxed Lua script execution and worker pools
 ├── messages/       # Predefined message constants
 ├── filter/        # Unified query filter system with operators for GORM queries
-├── net/           # Network utilities (IP extraction)
+├── net/           # Network utilities (package netx; IP extraction)
 ├── pagination/    # GORM pagination utilities with Fiber integration
 ├── queue/         # RabbitMQ producer/consumer with retry and DLQ support
 │   ├── events/    # Event producer for direct exchange routing
 │   └── tasks/     # Task producer for topic exchange with wildcard routing
 ├── text/          # String manipulation and processing
-├── uuid/          # UUID utilities
+├── uuid/          # UUID utilities (package uuidx)
 └── validator/     # Configuration and struct validation
 ```
 
@@ -315,11 +315,13 @@ isValid := hmac.ValidateSignature(
 #### Signature Format
 
 The HMAC signature is computed as:
+
 ```
 HMAC-SHA256(method + path + query + timestamp + body, secret)
 ```
 
 **Components:**
+
 - `method`: HTTP method (GET, POST, PUT, DELETE, etc.)
 - `path`: Request path (e.g., `/api/v1/users`)
 - `query`: Query string without `?` prefix (e.g., `status=active&per_page=10`)
@@ -327,10 +329,12 @@ HMAC-SHA256(method + path + query + timestamp + body, secret)
 - `body`: Raw request body bytes
 
 **Headers:**
+
 - `X-Signature`: The computed HMAC-SHA256 signature (hex-encoded)
 - `X-Timestamp`: Unix timestamp of the request
 
 **Security Features:**
+
 - Constant-time signature comparison to prevent timing attacks
 - Timestamp included to prevent replay attacks
 - All request components included in signature to prevent tampering
@@ -548,7 +552,7 @@ config := &logger.Config{
 
 log, err := logger.NewLogger(config)
 if err != nil {
-    log.Fatal("Failed to initialize logger:", err)
+    panic(err)
 }
 defer log.Sync()
 
@@ -560,7 +564,7 @@ log.Error("Something went wrong", zap.Error(err))
 app := fiber.New()
 loggerInstance, err := logger.SetupFiberLogger(app, config)
 if err != nil {
-    log.Fatal("Failed to setup logger:", err)
+    log.Fatal("Failed to setup logger", zap.Error(err))
 }
 defer loggerInstance.Sync()
 
@@ -569,6 +573,21 @@ devLogger, err := logger.NewDevelopmentLogger()
 
 // Production logger (JSON output, file rotation)
 prodLogger, err := logger.NewProductionLogger("/var/log/app.log", 100, 3, 28)
+```
+
+### Network and UUID Utilities
+
+```go
+import (
+    netx "github.com/kerimovok/go-pkg-utils/net"
+    uuidx "github.com/kerimovok/go-pkg-utils/uuid"
+)
+
+// Get client IP from Fiber context (CF, X-Forwarded-For, X-Real-IP)
+ip := netx.GetUserIP(c)
+
+// Parse UUID (format validation is available via config.IsValidUUID)
+id, err := uuidx.Parse("550e8400-e29b-41d4-a716-446655440000")
 ```
 
 ### Pagination
@@ -588,11 +607,11 @@ type User struct {
 // Simple pagination handler
 func GetUsers(c *fiber.Ctx, db *gorm.DB) error {
     defaults := pagination.Default() // Page: 1, PerPage: 20, SortBy: "created_at", SortOrder: "desc"
-    
+
     // Customize defaults if needed
     defaults.SortBy = "name"
     defaults.PerPage = 10
-    
+
     return pagination.HandleRequest[User](c, db.Model(&User{}), defaults, "Users retrieved successfully")
 }
 
@@ -604,10 +623,10 @@ func GetFilteredUsers(c *fiber.Ctx, db *gorm.DB) error {
         response := httpx.BadRequest("Invalid pagination parameters", err)
         return httpx.SendResponse(c, response)
     }
-    
+
     // Build custom query
     query := db.Model(&User{}).Where("active = ?", true)
-    
+
     // Execute paginated query
     ctx := c.Context()
     response, err := pagination.Query[User](ctx, query, params, "Active users retrieved")
@@ -615,7 +634,7 @@ func GetFilteredUsers(c *fiber.Ctx, db *gorm.DB) error {
         response := httpx.InternalServerError("Failed to retrieve users", err)
         return httpx.SendResponse(c, response)
     }
-    
+
     return httpx.SendPaginatedResponse(c, *response)
 }
 ```
@@ -699,6 +718,7 @@ func ListQRCodes(c *fiber.Ctx, db *gorm.DB) error {
 Filters use the format: `field_operator=value`
 
 **Examples:**
+
 ```
 GET /api/v1/qrcodes?status_eq=active&created_at_gte=2024-01-01&size_gt=300
 GET /api/v1/qrcodes?status_in=active,inactive&data_like=example
@@ -822,7 +842,7 @@ handler := func(msg amqp.Delivery) error {
     if err := json.Unmarshal(msg.Body, &data); err != nil {
         return err // Will trigger retry
     }
-    
+
     // Process data...
     return nil // Success - message will be acknowledged
 }
@@ -891,12 +911,14 @@ err = taskProducer.PublishWithCustomRoutingKey(ctx, "email.verify", payload, "ta
 #### Event vs Task Producers
 
 **Events Producer** (`queue/events`):
+
 - **Exchange Type**: `direct` (exact routing key match)
 - **Routing Key**: `"event"` (fixed)
 - **Use Case**: Event-driven architecture, event sourcing, audit logs
 - **Message Structure**: `{service, type, payload}`
 
 **Tasks Producer** (`queue/tasks`):
+
 - **Exchange Type**: `topic` (wildcard routing support)
 - **Routing Key**: `"tasks.<taskType>"` (auto-constructed from task type)
 - **Use Case**: Task queues, job processing, async operations
@@ -904,6 +926,7 @@ err = taskProducer.PublishWithCustomRoutingKey(ctx, "email.verify", payload, "ta
 - **Example**: Task type `"email.verify"` → routing key `"tasks.email.verify"`
 
 Both producers automatically:
+
 - Add timestamps to payloads
 - Handle connection management and reconnection
 - Support async publishing (fire and forget)
@@ -992,7 +1015,7 @@ pool := lua.NewWorkerPool(10) // Max 10 concurrent executions
 go func() {
     pool.Acquire()
     defer pool.Release()
-    
+
     result := executor.Execute(ctx, script, payload)
     // Process result...
 }()
@@ -1032,7 +1055,7 @@ config := lua.SandboxConfig{
     EnableOS:     false, // OS functions (security risk)
     EnableIO:     false, // IO functions (security risk)
     EnableDebug:  false, // Debug functions (security risk)
-    
+
     // Dangerous functions to disable
     DisableDofile:     true, // Disable dofile()
     DisableLoadfile:   true, // Disable loadfile()
@@ -1144,25 +1167,25 @@ fmt.Printf("Server: %s:%d\n", cfg.Server.Host, cfg.Server.Port)
 
 ```yaml
 database:
-    host: ${DB_HOST:-localhost}      # or ${DB_HOST=localhost}
-    port: ${DB_PORT:-5432}           # or ${DB_PORT=5432}
+    host: ${DB_HOST:-localhost} # or ${DB_HOST=localhost}
+    port: ${DB_PORT:-5432} # or ${DB_PORT=5432}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
-    ssl: ${DB_SSL:-false}            # or ${DB_SSL=false}
+    ssl: ${DB_SSL:-false} # or ${DB_SSL=false}
 
 server:
-    port: ${SERVER_PORT:-8080}       # or ${SERVER_PORT=8080}
-    host: ${SERVER_HOST:-0.0.0.0}    # or ${SERVER_HOST=0.0.0.0}
-    timeout: ${SERVER_TIMEOUT:-30s}  # or ${SERVER_TIMEOUT=30s}
+    port: ${SERVER_PORT:-8080} # or ${SERVER_PORT=8080}
+    host: ${SERVER_HOST:-0.0.0.0} # or ${SERVER_HOST=0.0.0.0}
+    timeout: ${SERVER_TIMEOUT:-30s} # or ${SERVER_TIMEOUT=30s}
 
-debug: ${DEBUG:-false}               # or ${DEBUG=false}
+debug: ${DEBUG:-false} # or ${DEBUG=false}
 ```
 
 #### Environment Variable Substitution Syntax
 
--   `${VARIABLE}` - Required variable (will be empty if not set)
--   `${VARIABLE:-default}` or `${VARIABLE=default}` - Optional variable with default value (both syntaxes are equivalent)
--   `${VARIABLE:-}` or `${VARIABLE=}` - Optional variable with empty string default
+- `${VARIABLE}` - Required variable (will be empty if not set)
+- `${VARIABLE:-default}` or `${VARIABLE=default}` - Optional variable with default value (both syntaxes are equivalent)
+- `${VARIABLE:-}` or `${VARIABLE=}` - Optional variable with empty string default
 
 #### Advanced Usage
 
@@ -1259,20 +1282,20 @@ All responses follow a consistent structure:
 
 ### Password Security
 
--   **bcrypt**: Standard bcrypt hashing for passwords
--   **scrypt**: Enhanced security with configurable parameters
--   **Secure Random**: Cryptographically secure random generation
+- **bcrypt**: Standard bcrypt hashing for passwords
+- **scrypt**: Enhanced security with configurable parameters
+- **Secure Random**: Cryptographically secure random generation
 
 ### Encryption
 
--   **AES-GCM**: Authenticated encryption for data
--   **RSA**: Asymmetric encryption and digital signatures
--   **HMAC**: Message authentication codes
+- **AES-GCM**: Authenticated encryption for data
+- **RSA**: Asymmetric encryption and digital signatures
+- **HMAC**: Message authentication codes
 
 ### Key Management
 
--   **Key Generation**: Secure key generation for various algorithms
--   **PEM Encoding**: Standard key serialization format
+- **Key Generation**: Secure key generation for various algorithms
+- **PEM Encoding**: Standard key serialization format
 
 ## 📊 Collections Features
 
@@ -1409,9 +1432,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
--   Built with ❤️ for the Go community
--   Inspired by modern utility libraries and best practices
--   Uses battle-tested cryptographic libraries and algorithms
+- Built with ❤️ for the Go community
+- Inspired by modern utility libraries and best practices
+- Uses battle-tested cryptographic libraries and algorithms
 
 ---
 
