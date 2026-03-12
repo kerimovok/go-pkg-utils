@@ -32,7 +32,7 @@ func OrderClause(sortBy, sortOrder string, fieldToColumn map[string]string, defa
 // Params represents pagination query parameters
 type Params struct {
 	Page      int    `query:"page" validate:"min=1"`
-	PerPage   int    `query:"per_page" validate:"min=1,max=100"`              // Items per page
+	PerPage   int    `query:"per_page" validate:"min=1,max=500"`              // Items per page
 	SortBy    string `query:"sort_by"`                                        // Sort field name
 	SortOrder string `query:"sort_order" validate:"omitempty,oneof=asc desc"` // Sort order: asc or desc
 }
