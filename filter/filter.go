@@ -80,7 +80,7 @@ func ParseFilters(c *fiber.Ctx, config *Config) ([]Filter, error) {
 	// Get all query parameters
 	queryParams := c.Queries()
 
-	for key, value := range queryParams {
+	for key := range queryParams {
 		// Skip pagination and sorting params
 		if isReservedParam(key) {
 			continue
@@ -113,19 +113,48 @@ func ParseFilters(c *fiber.Ctx, config *Config) ([]Filter, error) {
 			}
 		}
 
-		// Custom validation if provided
-		if config != nil && config.CustomValidators != nil {
-			if validator, ok := config.CustomValidators[field]; ok {
-				if err := validator(value); err != nil {
-					return nil, fmt.Errorf("validation failed for field '%s': %w", field, err)
+		var convertedValue interface{}
+
+		if operator == OperatorIN || operator == OperatorNOTIN {
+			// Collect all occurrences of this key (repeated params).
+			// e.g. ?service_line_in=val1&service_line_in=val2 → ["val1", "val2"]
+			raw := c.Context().QueryArgs().PeekMulti(key)
+			values := make([]string, len(raw))
+			for i, v := range raw {
+				values[i] = string(v)
+			}
+
+			// Run custom validator once per individual value
+			if config != nil && config.CustomValidators != nil {
+				if validator, ok := config.CustomValidators[field]; ok {
+					for _, v := range values {
+						if err := validator(v); err != nil {
+							return nil, fmt.Errorf("validation failed for field '%s': %w", field, err)
+						}
+					}
 				}
 			}
-		}
 
-		// Convert value based on field type and operator
-		convertedValue, err := convertValue(value, field, operator, config)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert value for field '%s': %w", field, err)
+			convertedValue, err = convertInValues(values, field, config)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert value for field '%s': %w", field, err)
+			}
+		} else {
+			value := queryParams[key]
+
+			// Custom validation if provided
+			if config != nil && config.CustomValidators != nil {
+				if validator, ok := config.CustomValidators[field]; ok {
+					if err := validator(value); err != nil {
+						return nil, fmt.Errorf("validation failed for field '%s': %w", field, err)
+					}
+				}
+			}
+
+			convertedValue, err = convertValue(value, field, operator, config)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert value for field '%s': %w", field, err)
+			}
 		}
 
 		fieldType := ""
@@ -180,41 +209,35 @@ func parseFilterKey(key string) (field string, operator Operator, err error) {
 	return field, operator, nil
 }
 
-// convertValue converts a string value to the appropriate type based on field configuration
+// convertValue converts a single string value to the appropriate type based on field configuration.
 func convertValue(value, field string, operator Operator, config *Config) (interface{}, error) {
-	// Handle IN and NOT_IN operators - they expect arrays
-	if operator == OperatorIN || operator == OperatorNOTIN {
-		values := strings.Split(value, ",")
-		var result []interface{}
-
-		// Determine type from config
-		fieldType := "string"
-		if config != nil && config.AllowedFields != nil {
-			if ft, ok := config.AllowedFields[field]; ok {
-				fieldType = ft
-			}
-		}
-
-		for _, v := range values {
-			v = strings.TrimSpace(v)
-			converted, err := convertSingleValue(v, fieldType)
-			if err != nil {
-				return nil, err
-			}
-			result = append(result, converted)
-		}
-		return result, nil
-	}
-
-	// Single value conversion
 	fieldType := "string"
 	if config != nil && config.AllowedFields != nil {
 		if ft, ok := config.AllowedFields[field]; ok {
 			fieldType = ft
 		}
 	}
-
 	return convertSingleValue(value, fieldType)
+}
+
+// convertInValues converts a slice of string values for IN / NOT_IN operators.
+// Each element is one independent value; no comma-splitting is performed.
+func convertInValues(values []string, field string, config *Config) (interface{}, error) {
+	fieldType := "string"
+	if config != nil && config.AllowedFields != nil {
+		if ft, ok := config.AllowedFields[field]; ok {
+			fieldType = ft
+		}
+	}
+	result := make([]interface{}, 0, len(values))
+	for _, v := range values {
+		converted, err := convertSingleValue(v, fieldType)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, converted)
+	}
+	return result, nil
 }
 
 // convertSingleValue converts a single string value to the specified type
@@ -280,10 +303,8 @@ func applyFilter(query *gorm.DB, f Filter) *gorm.DB {
 		}
 		return query.Where(f.Field+" LIKE ?", likeValue)
 	case OperatorIN:
-		// Value should be a comma-separated string or slice
 		return query.Where(f.Field+" IN ?", f.Value)
 	case OperatorNOTIN:
-		// Value should be a comma-separated string or slice
 		return query.Where(f.Field+" NOT IN ?", f.Value)
 	default:
 		return query
